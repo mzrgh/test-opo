@@ -70,6 +70,44 @@ Abre http://localhost:3000. Para parar compose: `docker compose down`.
 > (`.env.local` está en `.dockerignore`). La imagen es portable a cualquier PC con Docker,
 > pero necesita salida a internet para hablar con Supabase y la API de Claude.
 
+## Publicar en Docker Hub (compartir con otros equipos)
+
+Requiere una cuenta en [hub.docker.com](https://hub.docker.com) y un repositorio (p. ej.
+`tests-opo`). Sustituye `TU_USUARIO` por tu usuario de Docker Hub.
+
+1. **Login** (interactivo):
+   ```bash
+   docker login -u TU_USUARIO
+   ```
+
+2. **Recomendado — build multi-arquitectura y push en un paso.** Necesario si los equipos
+   usan distinta CPU (Apple Silicon `arm64` vs Windows/Linux Intel `amd64`):
+   ```bash
+   docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
+   docker buildx build --platform linux/amd64,linux/arm64 \
+     -t TU_USUARIO/tests-opo:1.0.0 \
+     -t TU_USUARIO/tests-opo:latest \
+     --push .
+   ```
+
+   Alternativa (solo tu arquitectura, a partir de la imagen ya construida):
+   ```bash
+   docker tag tests-opo TU_USUARIO/tests-opo:1.0.0
+   docker tag tests-opo TU_USUARIO/tests-opo:latest
+   docker push TU_USUARIO/tests-opo:1.0.0
+   docker push TU_USUARIO/tests-opo:latest
+   ```
+
+3. **Quien la use** (otro equipo) — necesita su propio `.env.local`:
+   ```bash
+   docker pull TU_USUARIO/tests-opo:latest
+   docker run --rm -p 3000:3000 --env-file .env.local TU_USUARIO/tests-opo:latest
+   ```
+
+> Cada equipo necesita sus credenciales (`.env.example` como plantilla; **nunca compartas tu
+> `.env.local`**) y su proyecto Supabase con la migración aplicada. Si el repositorio es
+> privado, los demás deben tener acceso y hacer `docker login`.
+
 ## Cómo funciona la generación
 
 `lib/generate-test.ts` envía el PDF (como bloque `document` base64) + un prompt
