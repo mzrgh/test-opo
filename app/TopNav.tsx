@@ -8,7 +8,7 @@ const SECCIONES = [
   { href: "/", label: "Dashboard", match: (p: string) => p === "/" },
   {
     href: "/generar",
-    label: "Generar test",
+    label: "Subir nuevo temario",
     match: (p: string) => p.startsWith("/generar"),
   },
   {

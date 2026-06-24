@@ -12,7 +12,9 @@ export default async function TemariosPage() {
   return (
     <>
       <h1>Realizar / Consultar tests</h1>
-      <p className="muted">Elige un temario para ver y realizar sus tests.</p>
+      <p className="muted">
+        Elige un temario para consultarlo, ver y realizar sus tests.
+      </p>
 
       {subjects.length === 0 ? (
         <p className="muted">

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { supabase } from "./supabase";
-import type { Dificultad } from "./test-contract";
+import type { Dificultad, GeneratedTest } from "./test-contract";
 
 // ── Tipos de fila (lo que vive en Postgres) ──────────────────────────────────
 
@@ -31,6 +31,49 @@ export interface QuestionRow {
   explicacion: string;
   ref_temario: string | null;
   orden: number;
+}
+
+// ── Escrituras ────────────────────────────────────────────────────────────────
+
+/**
+ * Inserta un test y sus preguntas para un temario ya existente.
+ * Devuelve el id del test creado. Lanza en caso de error.
+ * Compartido por la generación con PDF nuevo y la regeneración desde temario.
+ */
+export async function insertTestWithQuestions(
+  subjectId: string,
+  dificultad: Dificultad,
+  generated: GeneratedTest,
+): Promise<string> {
+  const { data: test, error: testErr } = await supabase
+    .from("tests")
+    .insert({
+      subject_id: subjectId,
+      dificultad,
+      descripcion: generated.descripcion,
+      status: "listo",
+    })
+    .select("id")
+    .single();
+  if (testErr || !test) {
+    throw new Error(`Error guardando el test: ${testErr?.message}`);
+  }
+
+  const filas = generated.preguntas.map((q, i) => ({
+    test_id: test.id,
+    enunciado: q.enunciado,
+    opciones: q.opciones,
+    indice_correcta: q.indiceCorrecta,
+    explicacion: q.explicacion,
+    ref_temario: q.refTemario,
+    orden: i,
+  }));
+  const { error: qErr } = await supabase.from("questions").insert(filas);
+  if (qErr) {
+    throw new Error(`Error guardando las preguntas: ${qErr.message}`);
+  }
+
+  return test.id as string;
 }
 
 // ── Lecturas ──────────────────────────────────────────────────────────────────
@@ -282,13 +325,13 @@ export interface DashboardStats {
   nTests: number;
   nTestsRealizados: number; // tests distintos con ≥1 intento finalizado
   nIntentos: number; // intentos finalizados
-  notaMediaPct: number | null; // media de (aciertos/preguntas)·100
-  evolucion: number[]; // % de cada intento finalizado, orden cronológico
+  notaMedia10: number | null; // media de (aciertos/preguntas)·10, base 10
+  evolucion: number[]; // % de cada intento finalizado, orden cronológico (gráfico)
   recientes: Array<{
     attemptId: string;
     subjectNombre: string;
     dificultad: Dificultad;
-    pct: number;
+    nota10: number; // nota base 10 del intento
     finishedAt: string;
   }>;
 }
@@ -345,13 +388,17 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const n = numPreguntas.get(testId) ?? 0;
     return n > 0 ? Math.round(((score ?? 0) / n) * 100) : 0;
   };
+  const nota10De = (testId: string, score: number | null): number => {
+    const n = numPreguntas.get(testId) ?? 0;
+    return n > 0 ? ((score ?? 0) / n) * 10 : 0;
+  };
 
-  const evolucion = fin.map((a) => pctDe(a.test_id, a.score));
+  const evolucion = fin.map((a) => pctDe(a.test_id, a.score)); // gráfico en %
   const nIntentos = fin.length;
   const nTestsRealizados = new Set(fin.map((a) => a.test_id)).size;
-  const notaMediaPct =
+  const notaMedia10 =
     nIntentos > 0
-      ? Math.round(evolucion.reduce((s, x) => s + x, 0) / nIntentos)
+      ? fin.reduce((s, a) => s + nota10De(a.test_id, a.score), 0) / nIntentos
       : null;
 
   const recientes = [...fin]
@@ -362,7 +409,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       subjectNombre:
         subjectNombre.get(testSubject.get(a.test_id) ?? "") ?? "—",
       dificultad: (testDificultad.get(a.test_id) ?? "media") as Dificultad,
-      pct: pctDe(a.test_id, a.score),
+      nota10: nota10De(a.test_id, a.score),
       finishedAt: a.finished_at,
     }));
 
@@ -371,7 +418,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     nTests: nTests ?? 0,
     nTestsRealizados,
     nIntentos,
-    notaMediaPct,
+    notaMedia10,
     evolucion,
     recientes,
   };
@@ -381,7 +428,7 @@ export interface SubjectTestStat {
   test: TestRow;
   numPreguntas: number;
   nIntentos: number;
-  mejorPct: number | null;
+  mejorNota10: number | null; // mejor nota en base 10
 }
 
 export interface SubjectDetail {
@@ -425,13 +472,11 @@ export async function getSubjectDetailWithStats(
   const stats: SubjectTestStat[] = tests.map((t) => {
     const numPreguntas = t.questions?.[0]?.count ?? 0;
     const intentos = finished.filter((a) => a.test_id === t.id);
-    const mejorPct =
+    const mejorNota10 =
       intentos.length > 0
         ? Math.max(
             ...intentos.map((a) =>
-              numPreguntas > 0
-                ? Math.round(((a.score ?? 0) / numPreguntas) * 100)
-                : 0,
+              numPreguntas > 0 ? ((a.score ?? 0) / numPreguntas) * 10 : 0,
             ),
           )
         : null;
@@ -441,7 +486,7 @@ export async function getSubjectDetailWithStats(
       test: testRow as TestRow,
       numPreguntas,
       nIntentos: intentos.length,
-      mejorPct,
+      mejorNota10,
     };
   });
 

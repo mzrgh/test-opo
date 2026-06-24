@@ -3,11 +3,15 @@ import { notFound } from "next/navigation";
 import { getSubjectDetailWithStats } from "@/lib/db";
 import { DIFFICULTY_DEFS } from "@/lib/difficulty";
 import ConfigNotice, { appConfigured } from "../../ConfigNotice";
+import GenerateFromSubjectForm from "./GenerateFromSubjectForm";
 
 export const dynamic = "force-dynamic";
 
 function fecha(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-ES", { dateStyle: "medium" });
+  return new Date(iso).toLocaleString("es-ES", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 export default async function TemarioPage({
@@ -32,9 +36,26 @@ export default async function TemarioPage({
       <h1>{subject.nombre}</h1>
       {subject.descripcion && <p className="muted">{subject.descripcion}</p>}
 
-      <h2>
-        Tests ({tests.length})
-      </h2>
+      <div className="panel">
+        <div className="cta-row">
+          {subject.pdf_path && (
+            <a
+              href={`/temarios/${id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-link"
+            >
+              📄 Ver temario (PDF)
+            </a>
+          )}
+        </div>
+        <details className="gen-details">
+          <summary>+ Generar nuevo test</summary>
+          <GenerateFromSubjectForm subjectId={id} />
+        </details>
+      </div>
+
+      <h2>Tests ({tests.length})</h2>
 
       {tests.length === 0 ? (
         <p className="muted">
@@ -60,7 +81,11 @@ export default async function TemarioPage({
                 ) : (
                   <span>
                     {t.nIntentos} intento{t.nIntentos === 1 ? "" : "s"} · mejor{" "}
-                    <strong>{t.mejorPct}%</strong>
+                    <strong>
+                      {t.mejorNota10 === null
+                        ? "—"
+                        : t.mejorNota10.toFixed(2).replace(".", ",")}
+                    </strong>
                   </span>
                 )}
               </div>

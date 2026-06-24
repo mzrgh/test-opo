@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { generateTest } from "@/lib/generate-test";
+import { insertTestWithQuestions } from "@/lib/db";
 import { isAnthropicConfigured } from "@/lib/anthropic";
 import { supabase, isSupabaseConfigured, TEMARIOS_BUCKET } from "@/lib/supabase";
 import { DIFFICULTIES, type Dificultad } from "@/lib/test-contract";
@@ -74,34 +75,74 @@ export async function generateAction(
     return { error: `Error guardando el temario: ${subErr?.message}` };
   }
 
-  const { data: test, error: testErr } = await supabase
-    .from("tests")
-    .insert({
-      subject_id: subject.id,
-      dificultad,
-      descripcion: generated.descripcion,
-      status: "listo",
-    })
-    .select("id")
-    .single();
-  if (testErr || !test) {
-    return { error: `Error guardando el test: ${testErr?.message}` };
-  }
-
-  const filas = generated.preguntas.map((q, i) => ({
-    test_id: test.id,
-    enunciado: q.enunciado,
-    opciones: q.opciones,
-    indice_correcta: q.indiceCorrecta,
-    explicacion: q.explicacion,
-    ref_temario: q.refTemario,
-    orden: i,
-  }));
-  const { error: qErr } = await supabase.from("questions").insert(filas);
-  if (qErr) {
-    return { error: `Error guardando las preguntas: ${qErr.message}` };
+  let testId: string;
+  try {
+    testId = await insertTestWithQuestions(subject.id, dificultad, generated);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error guardando el test." };
   }
 
   revalidatePath("/");
-  redirect(`/tests/${test.id}`);
+  redirect(`/tests/${testId}`);
+}
+
+/**
+ * Genera un test nuevo a partir de un temario YA existente: descarga su PDF de
+ * Storage (no se re-sube) y reutiliza el mismo flujo de generación.
+ */
+export async function generateFromSubjectAction(
+  _prev: GenerateState,
+  formData: FormData,
+): Promise<GenerateState> {
+  if (!isSupabaseConfigured || !isAnthropicConfigured) {
+    return {
+      error:
+        "Faltan credenciales en .env.local (Supabase y/o Anthropic). Configúralas y reinicia el servidor.",
+    };
+  }
+
+  const subjectId = String(formData.get("subjectId") ?? "").trim();
+  const dificultad = String(formData.get("dificultad") ?? "") as Dificultad;
+
+  if (!subjectId) return { error: "Temario no válido." };
+  if (!DIFFICULTIES.includes(dificultad)) {
+    return { error: "Selecciona una dificultad válida." };
+  }
+
+  const { data: subject, error: subErr } = await supabase
+    .from("subjects")
+    .select("pdf_path")
+    .eq("id", subjectId)
+    .maybeSingle();
+  if (subErr) return { error: `Error leyendo el temario: ${subErr.message}` };
+  const pdfPath = (subject as { pdf_path: string | null } | null)?.pdf_path;
+  if (!pdfPath) {
+    return { error: "Este temario no tiene un PDF asociado." };
+  }
+
+  const { data: blob, error: dlErr } = await supabase.storage
+    .from(TEMARIOS_BUCKET)
+    .download(pdfPath);
+  if (dlErr || !blob) {
+    return { error: `No se pudo leer el PDF del temario: ${dlErr?.message}` };
+  }
+  const pdfBase64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+
+  let generated;
+  try {
+    generated = await generateTest(pdfBase64, dificultad);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error generando el test." };
+  }
+
+  let testId: string;
+  try {
+    testId = await insertTestWithQuestions(subjectId, dificultad, generated);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error guardando el test." };
+  }
+
+  revalidatePath(`/temarios/${subjectId}`);
+  revalidatePath("/");
+  redirect(`/tests/${testId}`);
 }

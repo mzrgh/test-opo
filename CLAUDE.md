@@ -99,6 +99,11 @@ está finalizado). Sin penalización por fallo todavía (mejora futura).
 - `/generar` → formulario (`GenerateForm`, reutilizado).
 - `/temarios` → lista de temarios (card + nº tests); `/temarios/[id]` → tests del temario
   con nº intentos y mejor % (`getSubjectDetailWithStats`), enlaza a la landing del test.
+  Además: **Ver temario (PDF)** vía `app/temarios/[id]/pdf/route.ts` (genera una signed URL
+  del bucket privado al vuelo y redirige) y **Generar nuevo test** reutilizando el PDF ya
+  almacenado (`generateFromSubjectAction` en `app/actions.ts`: descarga el PDF de Storage,
+  no re-sube). La inserción test+preguntas está extraída en `insertTestWithQuestions`
+  (`lib/db.ts`), compartida con `generateAction`.
 
 Pantalla de credenciales compartida: `app/ConfigNotice.tsx` (exporta `appConfigured`);
 las páginas con datos hacen `if (!appConfigured) return <ConfigNotice />`.

@@ -207,6 +207,34 @@ body {
   color: var(--muted);
 }
 
+/* ── Generar nuevo test desde el temario ─────────────────────────────────── */
+.gen-details {
+  margin-top: 4px;
+}
+.gen-details > summary {
+  cursor: pointer;
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  list-style: none;
+}
+.gen-details > summary::-webkit-details-marker {
+  display: none;
+}
+.gen-details[open] > summary {
+  margin-bottom: 14px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.gen-form .field {
+  margin-bottom: 16px;
+}
+
 /* ── Card de test dentro de un temario ───────────────────────────────────── */
 .test-card {
   display: flex;

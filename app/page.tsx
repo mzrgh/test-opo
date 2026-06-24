@@ -69,7 +69,10 @@ export default async function Dashboard() {
     { label: "Intentos totales", value: stats.nIntentos },
     {
       label: "Nota media",
-      value: stats.notaMediaPct === null ? "—" : `${stats.notaMediaPct}%`,
+      value:
+        stats.notaMedia10 === null
+          ? "—"
+          : stats.notaMedia10.toFixed(2).replace(".", ","),
     },
   ];
 
@@ -89,7 +92,7 @@ export default async function Dashboard() {
 
       <div className="quick-row">
         <Link href="/generar" className="quick-cta">
-          + Generar test
+          + Subir nuevo temario
         </Link>
         <Link href="/temarios" className="quick-cta secondary-cta">
           Realizar / Consultar tests
@@ -101,7 +104,7 @@ export default async function Dashboard() {
         <Sparkline data={stats.evolucion} />
       </div>
 
-      <h2>Actividad reciente</h2>
+      <h2>Últimos tests completados</h2>
       {stats.recientes.length === 0 ? (
         <p className="muted">
           Todavía no has completado ningún test.{" "}
@@ -120,7 +123,7 @@ export default async function Dashboard() {
                 </span>{" "}
                 <span className="muted">· {fecha(r.finishedAt)}</span>
               </span>
-              <strong>{r.pct}%</strong>
+              <strong>{r.nota10.toFixed(2).replace(".", ",")}</strong>
             </li>
           ))}
         </ul>

@@ -8,7 +8,7 @@ export default function GenerarPage() {
 
   return (
     <>
-      <h1>Generar un test nuevo</h1>
+      <h1>Subir Temario a la plataforma</h1>
       <p className="muted">
         Sube un temario en PDF, elige la dificultad y se generará un test de
         hasta 40 preguntas.
