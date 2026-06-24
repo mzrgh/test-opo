@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    image: tests-opo
+    container_name: tests-opo
+    ports:
+      - "3000:3000"
+    # Lee las credenciales de .env.local (Supabase + Anthropic).
+    # Este fichero está en .gitignore y NO se incluye en la imagen.
+    env_file:
+      - .env.local
+    restart: unless-stopped

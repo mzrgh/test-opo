@@ -45,6 +45,31 @@ temario en PDF, eliges la dificultad y Claude genera un test de **40 preguntas**
    Abre http://localhost:3000. Mientras falten credenciales, la home muestra una
    pantalla de configuración en vez de fallar.
 
+## Ejecutar con Docker
+
+La app se empaqueta como imagen autocontenida (Node + dependencias + build, Next.js
+`standalone`). Requiere igualmente un proyecto Supabase con la migración aplicada y las
+credenciales: **no se incluyen en la imagen**, se inyectan en runtime.
+
+Con docker compose (lee `.env.local`):
+
+```bash
+docker compose up --build
+```
+
+O con docker a pelo:
+
+```bash
+docker build -t tests-opo .
+docker run --rm -p 3000:3000 --env-file .env.local tests-opo
+```
+
+Abre http://localhost:3000. Para parar compose: `docker compose down`.
+
+> Las claves se pasan por `--env-file`/`env_file`; nunca se hornean en la imagen
+> (`.env.local` está en `.dockerignore`). La imagen es portable a cualquier PC con Docker,
+> pero necesita salida a internet para hablar con Supabase y la API de Claude.
+
 ## Cómo funciona la generación
 
 `lib/generate-test.ts` envía el PDF (como bloque `document` base64) + un prompt
@@ -65,6 +90,7 @@ anclaje anti-alucinación, y `explicacion` obligatoria para el modo repaso.
 | `npm run build` | Build de producción |
 | `npm run start` | Sirve el build |
 | `npm run typecheck` | Comprueba tipos (`tsc --noEmit`) |
+| `docker compose up --build` | Construye y levanta el contenedor (lee `.env.local`) |
 
 ## Estructura
 

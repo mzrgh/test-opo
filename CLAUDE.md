@@ -20,7 +20,13 @@ modo repaso de falladas (Épicas 5/6 restantes).
 npm run dev        # desarrollo (localhost:3000)
 npm run build      # build de producción
 npm run typecheck  # tsc --noEmit
+docker compose up --build   # contenedor (lee credenciales de .env.local)
 ```
+
+**Docker**: `next.config.mjs` usa `output: "standalone"` e `images.unoptimized`. El
+`Dockerfile` es multi-stage (deps → builder → runner, `node:22-alpine`, usuario no root) y
+copia `.next/standalone` + `.next/static` + `public`. Las credenciales se inyectan en runtime
+(`env_file`/`--env-file`), nunca se hornean en la imagen (`.env.local` en `.dockerignore`).
 
 No hay suite de tests todavía. Tras cambios en `lib/` o tipos, valida con
 `npm run typecheck`; para cambios de UI/rutas, `npm run build` detecta errores de

@@ -1,0 +1,18 @@
+# dependencias y build (se regeneran dentro de la imagen)
+node_modules
+.next
+out
+
+# entorno y secretos (se inyectan en runtime, NUNCA en la imagen)
+.env.local
+.env*.local
+
+# git y metadatos
+.git
+.gitignore
+
+# docs / dev
+*.md
+.vscode
+.DS_Store
+npm-debug.log*
