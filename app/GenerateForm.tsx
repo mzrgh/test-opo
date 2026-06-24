@@ -14,8 +14,6 @@ export default function GenerateForm() {
 
   return (
     <form action={formAction} className="panel">
-      <h2 style={{ marginTop: 0 }}>Generar un test nuevo</h2>
-
       {state.error && <div className="error-box">{state.error}</div>}
 
       <div className="field">

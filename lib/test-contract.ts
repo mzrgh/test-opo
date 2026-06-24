@@ -8,7 +8,8 @@ export const DIFFICULTIES = ["baja", "media", "alta"] as const;
 export type Dificultad = (typeof DIFFICULTIES)[number];
 export const DificultadSchema = z.enum(DIFFICULTIES);
 
-export const TOTAL_PREGUNTAS = 40;
+export const TOTAL_PREGUNTAS = 40; // objetivo: lo que se le pide al modelo
+export const MIN_PREGUNTAS = 35; // mínimo aceptable para dar el test por válido
 export const OPCIONES_POR_PREGUNTA = 4;
 
 export const GeneratedQuestionSchema = z.object({
@@ -39,10 +40,13 @@ export const GeneratedTestSchema = z.object({
     .string()
     .min(1)
     .describe("1-2 frases que describen el contenido del temario."),
+  // Sin tope exacto a propósito: algunos modelos (p. ej. Haiku) ignoran el
+  // maxItems y devuelven 41+, lo que haría fallar el parseo entero. El conteo
+  // exacto (40) se normaliza/valida en código (generate-test.ts + invariantes).
   preguntas: z
     .array(GeneratedQuestionSchema)
-    .length(TOTAL_PREGUNTAS)
-    .describe(`Exactamente ${TOTAL_PREGUNTAS} preguntas.`),
+    .min(1)
+    .describe(`Idealmente ${TOTAL_PREGUNTAS} preguntas.`),
 });
 export type GeneratedTest = z.infer<typeof GeneratedTestSchema>;
 
@@ -53,9 +57,9 @@ export type GeneratedTest = z.infer<typeof GeneratedTestSchema>;
 export function validateInvariants(test: GeneratedTest): string[] {
   const errores: string[] = [];
 
-  if (test.preguntas.length !== TOTAL_PREGUNTAS) {
+  if (test.preguntas.length < MIN_PREGUNTAS) {
     errores.push(
-      `Se esperaban ${TOTAL_PREGUNTAS} preguntas y llegaron ${test.preguntas.length}.`,
+      `Se necesitan al menos ${MIN_PREGUNTAS} preguntas y llegaron ${test.preguntas.length}.`,
     );
   }
 

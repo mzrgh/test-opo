@@ -5,6 +5,7 @@ import { anthropic, GENERATION_MODEL } from "./anthropic";
 import { DIFFICULTY_DEFS } from "./difficulty";
 import {
   GeneratedTestSchema,
+  MIN_PREGUNTAS,
   TOTAL_PREGUNTAS,
   validateInvariants,
   type Dificultad,
@@ -52,37 +53,65 @@ export async function generateTest(
 ): Promise<GeneratedTest> {
   let feedback: string[] = [];
 
-  for (let intento = 1; intento <= MAX_REINTENTOS; intento++) {
-    const response = await anthropic.messages.parse({
-      model: GENERATION_MODEL,
-      max_tokens: 32000,
-      thinking: { type: "adaptive" },
-      output_config: {
-        effort: "high",
-        format: zodOutputFormat(GeneratedTestSchema),
-      },
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: pdfBase64,
-              },
-            },
-            { type: "text", text: construirPrompt(dificultad, feedback) },
-          ],
-        },
-      ],
-    });
+  // Haiku 4.5 no admite adaptive thinking ni output_config.effort;
+  // solo los enviamos en modelos que los soportan (Opus 4.5+ / Sonnet 4.6).
+  const soportaThinking = !GENERATION_MODEL.includes("haiku");
 
-    const parsed = response.parsed_output;
-    if (!parsed) {
+  for (let intento = 1; intento <= MAX_REINTENTOS; intento++) {
+    let parsed: GeneratedTest | null = null;
+    try {
+      const response = await anthropic.messages.parse({
+        model: GENERATION_MODEL,
+        max_tokens: 32000,
+        ...(soportaThinking ? { thinking: { type: "adaptive" as const } } : {}),
+        output_config: {
+          ...(soportaThinking ? { effort: "high" as const } : {}),
+          format: zodOutputFormat(GeneratedTestSchema),
+        },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "document",
+                source: {
+                  type: "base64",
+                  media_type: "application/pdf",
+                  data: pdfBase64,
+                },
+              },
+              { type: "text", text: construirPrompt(dificultad, feedback) },
+            ],
+          },
+        ],
+      });
+      parsed = response.parsed_output;
+    } catch (e) {
+      // parse() lanza si la salida no encaja en el esquema: lo tratamos como
+      // un intento fallido y reintentamos con feedback en vez de abortar.
       feedback = [
-        `La salida no cumplió el esquema (estructura o número de preguntas distinto de ${TOTAL_PREGUNTAS}).`,
+        `La salida no se pudo parsear: ${
+          e instanceof Error ? e.message : String(e)
+        }. Devuelve exactamente ${TOTAL_PREGUNTAS} preguntas con la estructura pedida.`,
+      ];
+      continue;
+    }
+
+    if (!parsed) {
+      feedback = [`La salida no cumplió el esquema requerido.`];
+      continue;
+    }
+
+    // Normalizar el conteo: recorta si pasa de TOTAL; reintenta solo si no
+    // llega al mínimo aceptable (MIN_PREGUNTAS).
+    if (parsed.preguntas.length > TOTAL_PREGUNTAS) {
+      parsed = {
+        ...parsed,
+        preguntas: parsed.preguntas.slice(0, TOTAL_PREGUNTAS),
+      };
+    } else if (parsed.preguntas.length < MIN_PREGUNTAS) {
+      feedback = [
+        `Devolviste ${parsed.preguntas.length} preguntas; necesito al menos ${MIN_PREGUNTAS} (idealmente ${TOTAL_PREGUNTAS}).`,
       ];
       continue;
     }

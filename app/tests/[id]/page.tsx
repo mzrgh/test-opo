@@ -1,17 +1,27 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTestDetail } from "@/lib/db";
+import {
+  getTestDetail,
+  getInProgressAttempt,
+  getFinishedAttempts,
+} from "@/lib/db";
 import { DIFFICULTY_DEFS } from "@/lib/difficulty";
+import { startAttempt } from "@/app/attempt-actions";
 
 export const dynamic = "force-dynamic";
 
-const LETRAS = ["A", "B", "C", "D"];
-
 function fecha(iso: string): string {
   return new Date(iso).toLocaleString("es-ES", {
-    dateStyle: "long",
+    dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function duracionLegible(seg: number | null): string {
+  if (seg === null) return "—";
+  const m = Math.floor(seg / 60);
+  const s = seg % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
 export default async function TestPage({
@@ -24,6 +34,18 @@ export default async function TestPage({
   if (!detail) notFound();
 
   const { test, subject, questions } = detail;
+  const [enCurso, finalizados] = await Promise.all([
+    getInProgressAttempt(id),
+    getFinishedAttempts(id),
+  ]);
+
+  const mejor =
+    finalizados.length > 0
+      ? Math.max(...finalizados.map((a) => a.score ?? 0))
+      : null;
+
+  // startAttempt necesita el testId; lo fijamos con bind para usarlo como action.
+  const startThisAttempt = startAttempt.bind(null, id);
 
   return (
     <>
@@ -36,35 +58,53 @@ export default async function TestPage({
         <span className={`badge ${test.dificultad}`}>
           {DIFFICULTY_DEFS[test.dificultad].label}
         </span>{" "}
-        <span className="muted">· Generado el {fecha(test.created_at)}</span>
+        <span className="muted">
+          · {questions.length} preguntas · generado el {fecha(test.created_at)}
+        </span>
       </p>
       <p className="muted">{test.descripcion}</p>
-      <p className="muted">{questions.length} preguntas</p>
 
-      {questions.map((q) => (
-        <div className="question" key={q.id}>
-          <div className="q-head">
-            {q.orden + 1}. {q.enunciado}
-          </div>
-          <ul className="options">
-            {q.opciones.map((op, i) => (
-              <li key={i} className={i === q.indice_correcta ? "correct" : ""}>
-                <span className="opt-letter">{LETRAS[i] ?? i + 1}</span>
-                {op}
-              </li>
-            ))}
-          </ul>
-          <div className="explain">
-            <strong>Explicación:</strong> {q.explicacion}
-            {q.ref_temario && (
-              <>
-                <br />
-                <strong>Referencia:</strong> <em>{q.ref_temario}</em>
-              </>
-            )}
-          </div>
+      <div className="panel">
+        <div className="cta-row">
+          <form action={startThisAttempt}>
+            <button type="submit">Realizar test</button>
+          </form>
+          {enCurso && (
+            <Link href={`/attempts/${enCurso.id}/run`} className="btn-link">
+              ▶ Continuar test en curso
+            </Link>
+          )}
+          <Link href={`/tests/${id}/solucionario`} className="btn-link muted">
+            Ver solucionario (spoiler)
+          </Link>
         </div>
-      ))}
+        {mejor !== null && (
+          <p className="hint">
+            Mejor resultado hasta ahora: {mejor}/{questions.length}
+          </p>
+        )}
+      </div>
+
+      <h2>Historial de intentos</h2>
+      {finalizados.length === 0 ? (
+        <p className="muted">Todavía no has completado este test.</p>
+      ) : (
+        <ul className="test-list">
+          {finalizados.map((a) => (
+            <li key={a.id}>
+              <span>
+                <Link href={`/attempts/${a.id}/result`}>
+                  {fecha(a.finished_at ?? a.started_at)}
+                </Link>{" "}
+                <span className="muted">· {duracionLegible(a.duracion)}</span>
+              </span>
+              <span>
+                <strong>{a.score}</strong>/{questions.length}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 }

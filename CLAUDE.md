@@ -6,10 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 App **personal single-user** (sin auth, corre en localhost) para preparar oposiciones:
 subir un temario en PDF → elegir dificultad → Claude genera un test de 40 preguntas
-→ guardarlo y revisarlo. Backend en Supabase (Postgres + Storage), generación con la
-API de Anthropic. Estado actual: **MVP del Objetivo 1** (generación). El Objetivo 2
-(realizar tests, puntuación, historial, evolución) aún no está implementado pero su
-esquema ya existe en la BD (`attempts`, `answers`).
+→ realizarlo estilo Pearson → corregir y revisar. Backend en Supabase (Postgres +
+Storage), generación con la API de Anthropic.
+
+**Estado**: Objetivo 1 (generación) y Objetivo 2 (ejecución: realizar test, guardado
+incremental, corrección, resultados, reanudar, historial por test) implementados.
+Pendiente: dashboard global, evolución entre temarios, comparativa de intentos,
+modo repaso de falladas (Épicas 5/6 restantes).
 
 ## Comandos
 
@@ -68,9 +71,44 @@ arrancar antes de tener claves.
   nueva migración numerada, no edites la existente.
 - `randomUUID()` (de `node:crypto`) para los paths de PDF en Storage.
 
-## Al construir el Objetivo 2 (plataforma de ejecución)
+## Ejecución de tests (Objetivo 2)
 
-Las tablas ya están: `attempts` (un intento; `finished_at = null` ⇒ test en curso, para
-reanudar) y `answers` (guardado **incremental** por pregunta, con `marcada_para_revision`).
-Guardar respuestas a medida que se contestan, no solo al finalizar — es lo que habilita
-reanudar un test y el marcado para revisión.
+**Modo examen — no filtrar soluciones al cliente.** `getRunData` (lib/db.ts) selecciona
+las preguntas SIN `indice_correcta` ni `explicacion`; la pantalla de ejecución
+(`app/attempts/[id]/run`) nunca recibe la respuesta correcta. `es_correcta` se calcula
+en servidor en `saveAnswer` (app/attempt-actions.ts). Las soluciones solo aparecen en
+resultados (`getResultData`) y en el solucionario.
+
+**Guardado incremental.** `startAttempt` crea el `attempts` y **pre-crea las 40 filas de
+`answers`** (una por pregunta). Cada interacción es un UPDATE (`saveAnswer`, `toggleMark`),
+no un upsert — así no se pisan `opcion_elegida` y `marcada_para_revision` entre sí. Esto
+habilita reanudar: `attempts.finished_at = null` ⇒ test en curso; la landing del test
+ofrece "Continuar" y `getInProgressAttempt` lo localiza.
+
+**Scoring.** `finishAttempt` cuenta `es_correcta = true`, guarda `score` (nº de aciertos),
+`duracion` (seg desde `started_at`) y `finished_at`. Es idempotente (no re-puntúa si ya
+está finalizado). Sin penalización por fallo todavía (mejora futura).
+
+## Navegación / IA (barra fija con 3 secciones)
+
+`app/layout.tsx` monta `TopNav` (fija, client, marca sección activa con `usePathname`) +
+`Footer` (© Raúl González + ancla `#top`). Secciones:
+- `/` → **Dashboard** (`app/page.tsx`): 5 KPIs + evolución (SVG inline, sin librería) +
+  actividad reciente. Datos de `getDashboardStats()`. KPIs solo de intentos finalizados;
+  nota media = % medio (aciertos/preguntas).
+- `/generar` → formulario (`GenerateForm`, reutilizado).
+- `/temarios` → lista de temarios (card + nº tests); `/temarios/[id]` → tests del temario
+  con nº intentos y mejor % (`getSubjectDetailWithStats`), enlaza a la landing del test.
+
+Pantalla de credenciales compartida: `app/ConfigNotice.tsx` (exporta `appConfigured`);
+las páginas con datos hacen `if (!appConfigured) return <ConfigNotice />`.
+
+**Rutas de test/ejecución.** `/tests/[id]` = landing (realizar/continuar + historial).
+`/tests/[id]/solucionario` = soluciones abiertas. `/attempts/[id]/run` = examen (client).
+`/attempts/[id]/result` = corrección + revisión.
+
+## Pendiente
+
+Comparativa visual de intentos del mismo test (`HU-17`, ya hay datos), modo repaso de
+preguntas falladas. La columna `tests.status` (`generando`) está reservada por si se migra
+la generación a un job async.

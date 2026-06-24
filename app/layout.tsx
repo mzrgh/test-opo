@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./globals.css";
+import TopNav from "./TopNav";
+import Footer from "./Footer";
 
 export const metadata: Metadata = {
-  title: "tests-opo · Generador de tests de oposiciones",
-  description: "Sube un temario en PDF y genera tests para practicar.",
+  title: "TESTS-OPO-Hector",
+  description:
+    "Aplicación de Tests para que Héctor González estudie la oposición.",
 };
 
 export default function RootLayout({
@@ -15,13 +17,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <header className="site-header">
-          <Link href="/" className="brand">
-            tests-opo
-          </Link>
-          <span className="tagline">Generador de tests de oposiciones</span>
-        </header>
-        <main className="container">{children}</main>
+        <TopNav />
+        <main id="top" className="container">
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   );
