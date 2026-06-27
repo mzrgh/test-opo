@@ -87,6 +87,10 @@ Abre http://localhost:3000. Para parar compose: `docker compose down`.
 
 ## Publicar en Docker Hub (compartir con otros equipos)
 
+> **Pipeline completo de release** (de `npm run dev` → cerrar versión → probar el contenedor
+> → publicar en Docker Hub → ejecutar desde Docker Desktop) documentado paso a paso en
+> [`RELEASING.md`](./RELEASING.md). Lo de abajo es solo la parte de Docker Hub.
+
 Requiere una cuenta en [hub.docker.com](https://hub.docker.com) y un repositorio (p. ej.
 `tests-opo`). Sustituye `TU_USUARIO` por tu usuario de Docker Hub.
 
