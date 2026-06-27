@@ -31,8 +31,9 @@ temario en PDF, eliges la dificultad y Claude genera un test de **40 preguntas**
 
 2. **Supabase**
    - Crea un proyecto en [supabase.com](https://supabase.com).
-   - SQL Editor → pega y ejecuta `supabase/migrations/0001_init.sql`
-     (crea las tablas y el bucket `temarios`).
+   - SQL Editor → ejecuta las migraciones en orden:
+     `supabase/migrations/0001_init.sql` (tablas + bucket `temarios`) y luego
+     `supabase/migrations/0002_etiquetas.sql` (etiquetas de temarios).
 
 3. **Credenciales** — copia y rellena el entorno:
    ```bash

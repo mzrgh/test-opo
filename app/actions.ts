@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { generateTest } from "@/lib/generate-test";
-import { insertTestWithQuestions } from "@/lib/db";
+import {
+  insertTestWithQuestions,
+  asignarEtiquetas,
+  reemplazarEtiquetas,
+} from "@/lib/db";
 import { isGenerationConfigured } from "@/lib/provider";
 import { contarPaginasPdf } from "@/lib/pdf-text";
 import { APP_CONFIG, MAX_PDF_BYTES } from "@/lib/app-config";
@@ -14,6 +18,15 @@ import { DIFFICULTIES, type Dificultad } from "@/lib/test-contract";
 
 export interface GenerateState {
   error?: string;
+  ok?: boolean;
+}
+
+/** Extrae etiquetas de un campo de texto separado por comas. */
+function parseEtiquetas(valor: FormDataEntryValue | null): string[] {
+  return String(valor ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export async function generateAction(
@@ -29,6 +42,7 @@ export async function generateAction(
 
   const nombre = String(formData.get("nombre") ?? "").trim();
   const dificultad = String(formData.get("dificultad") ?? "") as Dificultad;
+  const etiquetas = parseEtiquetas(formData.get("etiquetas"));
   const file = formData.get("pdf");
 
   if (!nombre) return { error: "Indica un nombre para el temario." };
@@ -96,6 +110,18 @@ export async function generateAction(
   if (subErr || !subject) {
     await supabase.storage.from(TEMARIOS_BUCKET).remove([pdfPath]);
     return { error: `Error guardando el temario: ${subErr?.message}` };
+  }
+
+  // Etiquetas: crea las que falten y las vincula. Si falla, deshace el temario
+  // y el PDF para no dejar estado inconsistente.
+  try {
+    if (etiquetas.length > 0) await asignarEtiquetas(subject.id, etiquetas);
+  } catch (e) {
+    await supabase.storage.from(TEMARIOS_BUCKET).remove([pdfPath]);
+    await supabase.from("subjects").delete().eq("id", subject.id);
+    return {
+      error: e instanceof Error ? e.message : "Error guardando las etiquetas.",
+    };
   }
 
   let testId: string;
@@ -180,4 +206,33 @@ export async function generateFromSubjectAction(
   revalidatePath(`/temarios/${subjectId}`);
   revalidatePath("/");
   redirect(`/tests/${testId}`);
+}
+
+/**
+ * Reemplaza las etiquetas de un temario existente (edición desde /temarios/[id]).
+ * No genera nada; solo actualiza el etiquetado.
+ */
+export async function updateSubjectEtiquetasAction(
+  _prev: GenerateState,
+  formData: FormData,
+): Promise<GenerateState> {
+  if (!isSupabaseConfigured) {
+    return { error: "Falta configuración de Supabase en .env.local." };
+  }
+
+  const subjectId = String(formData.get("subjectId") ?? "").trim();
+  if (!subjectId) return { error: "Temario no válido." };
+
+  const etiquetas = parseEtiquetas(formData.get("etiquetas"));
+  try {
+    await reemplazarEtiquetas(subjectId, etiquetas);
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Error actualizando las etiquetas.",
+    };
+  }
+
+  revalidatePath(`/temarios/${subjectId}`);
+  revalidatePath("/temarios");
+  return { ok: true };
 }

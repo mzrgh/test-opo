@@ -33,6 +33,12 @@ export interface QuestionRow {
   orden: number;
 }
 
+export interface EtiquetaRow {
+  id: string;
+  nombre: string;
+  created_at: string;
+}
+
 // ── Escrituras ────────────────────────────────────────────────────────────────
 
 /**
@@ -76,12 +82,103 @@ export async function insertTestWithQuestions(
   return test.id as string;
 }
 
+// ── Etiquetas ───────────────────────────────────────────────────────────────
+
+/** Normaliza una lista de nombres: trim, sin vacíos, sin duplicados (case-insensitive). */
+function normalizarNombres(nombres: string[]): string[] {
+  const porClave = new Map<string, string>();
+  for (const raw of nombres) {
+    const limpio = raw.trim();
+    if (!limpio) continue;
+    const clave = limpio.toLowerCase();
+    if (!porClave.has(clave)) porClave.set(clave, limpio);
+  }
+  return [...porClave.values()];
+}
+
+/**
+ * Asegura que existan las etiquetas dadas (crea las que falten "sobre la marcha")
+ * y devuelve sus ids. La coincidencia es case-insensitive.
+ */
+export async function upsertEtiquetas(nombres: string[]): Promise<string[]> {
+  const limpios = normalizarNombres(nombres);
+  if (limpios.length === 0) return [];
+
+  // Catálogo actual (single-user: volumen pequeño, traerlo entero es barato).
+  const { data: existentes, error } = await supabase
+    .from("etiquetas")
+    .select("id, nombre");
+  if (error) throw new Error(error.message);
+
+  const idPorClave = new Map<string, string>();
+  for (const e of (existentes ?? []) as { id: string; nombre: string }[]) {
+    idPorClave.set(e.nombre.toLowerCase(), e.id);
+  }
+
+  const aCrear = limpios.filter((n) => !idPorClave.has(n.toLowerCase()));
+  if (aCrear.length > 0) {
+    const { data: creadas, error: insErr } = await supabase
+      .from("etiquetas")
+      .insert(aCrear.map((nombre) => ({ nombre })))
+      .select("id, nombre");
+    if (insErr) throw new Error(`Error creando etiquetas: ${insErr.message}`);
+    for (const e of (creadas ?? []) as { id: string; nombre: string }[]) {
+      idPorClave.set(e.nombre.toLowerCase(), e.id);
+    }
+  }
+
+  return limpios.map((n) => idPorClave.get(n.toLowerCase())!).filter(Boolean);
+}
+
+/** Vincula etiquetas (por nombre) a un temario de forma aditiva (idempotente). */
+export async function asignarEtiquetas(
+  subjectId: string,
+  nombres: string[],
+): Promise<void> {
+  const ids = await upsertEtiquetas(nombres);
+  if (ids.length === 0) return;
+  const { error } = await supabase
+    .from("subject_etiquetas")
+    .upsert(
+      ids.map((etiqueta_id) => ({ subject_id: subjectId, etiqueta_id })),
+      { onConflict: "subject_id,etiqueta_id", ignoreDuplicates: true },
+    );
+  if (error) throw new Error(`Error asignando etiquetas: ${error.message}`);
+}
+
+/** Reemplaza por completo las etiquetas de un temario (para edición). */
+export async function reemplazarEtiquetas(
+  subjectId: string,
+  nombres: string[],
+): Promise<void> {
+  const { error: delErr } = await supabase
+    .from("subject_etiquetas")
+    .delete()
+    .eq("subject_id", subjectId);
+  if (delErr) throw new Error(`Error actualizando etiquetas: ${delErr.message}`);
+  await asignarEtiquetas(subjectId, nombres);
+}
+
+/** Catálogo completo de etiquetas (para los filtros del frontend), por nombre. */
+export async function getEtiquetas(): Promise<EtiquetaRow[]> {
+  const { data, error } = await supabase
+    .from("etiquetas")
+    .select("*")
+    .order("nombre", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as EtiquetaRow[];
+}
+
 // ── Lecturas ──────────────────────────────────────────────────────────────────
 
-/** Temarios con sus tests, agrupados (para la home). */
-export async function getSubjectsWithTests(): Promise<
-  Array<SubjectRow & { tests: TestRow[] }>
-> {
+/**
+ * Temarios con sus tests y etiquetas, agrupados.
+ * Si se pasan `filtroEtiquetaIds`, solo devuelve los temarios que tengan TODAS
+ * esas etiquetas (filtro restrictivo, AND).
+ */
+export async function getSubjectsWithTests(
+  filtroEtiquetaIds: string[] = [],
+): Promise<Array<SubjectRow & { tests: TestRow[]; etiquetas: EtiquetaRow[] }>> {
   const { data: subjects, error: subErr } = await supabase
     .from("subjects")
     .select("*")
@@ -94,6 +191,11 @@ export async function getSubjectsWithTests(): Promise<
     .order("created_at", { ascending: false });
   if (testErr) throw new Error(testErr.message);
 
+  const { data: links, error: linkErr } = await supabase
+    .from("subject_etiquetas")
+    .select("subject_id, etiquetas(id, nombre, created_at)");
+  if (linkErr) throw new Error(linkErr.message);
+
   const porSubject = new Map<string, TestRow[]>();
   for (const t of (tests ?? []) as TestRow[]) {
     const lista = porSubject.get(t.subject_id) ?? [];
@@ -101,10 +203,32 @@ export async function getSubjectsWithTests(): Promise<
     porSubject.set(t.subject_id, lista);
   }
 
-  return ((subjects ?? []) as SubjectRow[]).map((s) => ({
-    ...s,
-    tests: porSubject.get(s.id) ?? [],
-  }));
+  const etiquetasPorSubject = new Map<string, EtiquetaRow[]>();
+  // supabase-js tipa los embeds to-one como array; en runtime es objeto.
+  for (const l of (links ?? []) as unknown as Array<{
+    subject_id: string;
+    etiquetas: EtiquetaRow | null;
+  }>) {
+    if (!l.etiquetas) continue;
+    const lista = etiquetasPorSubject.get(l.subject_id) ?? [];
+    lista.push(l.etiquetas);
+    etiquetasPorSubject.set(l.subject_id, lista);
+  }
+
+  const filtro = filtroEtiquetaIds.filter(Boolean);
+
+  return ((subjects ?? []) as SubjectRow[])
+    .map((s) => {
+      const etiquetas = (etiquetasPorSubject.get(s.id) ?? []).sort((a, b) =>
+        a.nombre.localeCompare(b.nombre),
+      );
+      return { ...s, tests: porSubject.get(s.id) ?? [], etiquetas };
+    })
+    .filter((s) => {
+      if (filtro.length === 0) return true;
+      const ids = new Set(s.etiquetas.map((e) => e.id));
+      return filtro.every((fid) => ids.has(fid)); // AND: todas presentes
+    });
 }
 
 /** Un test con su temario y sus preguntas ordenadas. */
@@ -434,6 +558,7 @@ export interface SubjectTestStat {
 export interface SubjectDetail {
   subject: SubjectRow;
   tests: SubjectTestStat[];
+  etiquetas: EtiquetaRow[];
 }
 
 /** Un temario con sus tests y estadísticas de intentos por test. */
@@ -447,6 +572,18 @@ export async function getSubjectDetailWithStats(
     .maybeSingle();
   if (sErr) throw new Error(sErr.message);
   if (!subject) return null;
+
+  const { data: links, error: lErr } = await supabase
+    .from("subject_etiquetas")
+    .select("etiquetas(id, nombre, created_at)")
+    .eq("subject_id", subjectId);
+  if (lErr) throw new Error(lErr.message);
+  const etiquetas = (
+    (links ?? []) as unknown as Array<{ etiquetas: EtiquetaRow | null }>
+  )
+    .map((l) => l.etiquetas)
+    .filter((e): e is EtiquetaRow => e !== null)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   const { data: testsData, error: tErr } = await supabase
     .from("tests")
@@ -490,5 +627,5 @@ export async function getSubjectDetailWithStats(
     };
   });
 
-  return { subject: subject as SubjectRow, tests: stats };
+  return { subject: subject as SubjectRow, tests: stats, etiquetas };
 }

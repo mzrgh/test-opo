@@ -7,6 +7,16 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Añadido
+- **Etiquetas de temarios** (relación N:M): tablas `etiquetas` y `subject_etiquetas`
+  (migración `0002_etiquetas.sql`). Al subir un temario se pueden asignar etiquetas
+  (se crean al vuelo las que no existan). En `/temarios`, filtro por chips con
+  semántica **AND** (`?etiquetas=` en la URL) y edición de etiquetas en `/temarios/[id]`.
+  Funciones en `lib/db.ts` (`upsertEtiquetas`, `asignarEtiquetas`, `reemplazarEtiquetas`,
+  `getEtiquetas`).
+- **Versión en el pie de página**: el footer muestra `Versión [x.y.z] - fecha`, derivada
+  en build del `CHANGELOG.md` (fuente única, vía `next.config.mjs` → `env`).
+
 ### Pendiente
 - Comparativa visual de intentos del mismo test (HU-17).
 - Modo repaso de preguntas falladas.

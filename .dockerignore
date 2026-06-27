@@ -13,6 +13,8 @@ out
 
 # docs / dev
 *.md
+# excepto CHANGELOG.md: next.config lo lee en build para la versión del pie
+!CHANGELOG.md
 .vscode
 .DS_Store
 npm-debug.log*

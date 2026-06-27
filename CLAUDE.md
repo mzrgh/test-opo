@@ -113,18 +113,29 @@ está finalizado). Sin penalización por fallo todavía (mejora futura).
 ## Navegación / IA (barra fija con 3 secciones)
 
 `app/layout.tsx` monta `TopNav` (fija, client, marca sección activa con `usePathname`) +
-`Footer` (© Raúl González + ancla `#top`). Secciones:
+`Footer` (© Raúl González + **versión** + ancla `#top`). La versión del pie se deriva en
+**build** de `CHANGELOG.md` (primera entrada `## [x.y.z] - fecha`, ignorando `[No publicado]`):
+`next.config.mjs` la lee y la inyecta vía `env` (`APP_VERSION`/`APP_VERSION_DATE`), por lo que
+NO se lee fichero en runtime (Docker). Por eso `.dockerignore` incluye `!CHANGELOG.md`. Secciones:
 - `/` → **Dashboard** (`app/page.tsx`): 5 KPIs + evolución (SVG inline, sin librería) +
   actividad reciente. Datos de `getDashboardStats()`. KPIs solo de intentos finalizados;
   nota media = % medio (aciertos/preguntas).
 - `/generar` → formulario (`GenerateForm`, reutilizado).
-- `/temarios` → lista de temarios (card + nº tests); `/temarios/[id]` → tests del temario
-  con nº intentos y mejor % (`getSubjectDetailWithStats`), enlaza a la landing del test.
-  Además: **Ver temario (PDF)** vía `app/temarios/[id]/pdf/route.ts` (genera una signed URL
-  del bucket privado al vuelo y redirige) y **Generar nuevo test** reutilizando el PDF ya
-  almacenado (`generateFromSubjectAction` en `app/actions.ts`: descarga el PDF de Storage,
-  no re-sube). La inserción test+preguntas está extraída en `insertTestWithQuestions`
-  (`lib/db.ts`), compartida con `generateAction`.
+- `/temarios` → lista de temarios (card + nº tests + etiquetas) con **filtro por etiquetas**
+  (chips, AND, estado en `?etiquetas=ids` → `EtiquetaFilter`, client); `/temarios/[id]` →
+  tests del temario con nº intentos y mejor % (`getSubjectDetailWithStats`), enlaza a la
+  landing del test. Además: **Ver temario (PDF)** vía `app/temarios/[id]/pdf/route.ts` (genera
+  una signed URL del bucket privado al vuelo y redirige), **Generar nuevo test** reutilizando
+  el PDF ya almacenado (`generateFromSubjectAction` en `app/actions.ts`: descarga el PDF de
+  Storage, no re-sube) y **Editar etiquetas** (`EditEtiquetasForm` → `updateSubjectEtiquetasAction`).
+  La inserción test+preguntas está extraída en `insertTestWithQuestions` (`lib/db.ts`),
+  compartida con `generateAction`.
+
+**Etiquetas (N:M)** — tablas `etiquetas` + `subject_etiquetas` (migración `0002_etiquetas.sql`;
+unicidad case-insensitive vía `lower(nombre)`). Toda la lógica en `lib/db.ts`: `upsertEtiquetas`
+(crea las que falten), `asignarEtiquetas` (aditivo, al subir), `reemplazarEtiquetas` (edición),
+`getEtiquetas` (catálogo). El filtro AND se aplica en memoria en `getSubjectsWithTests` (volumen
+single-user). Las etiquetas son metadato del servidor: NO se piden al LLM.
 
 Pantalla de credenciales compartida: `app/ConfigNotice.tsx` (exporta `appConfigured`);
 las páginas con datos hacen `if (!appConfigured) return <ConfigNotice />`.

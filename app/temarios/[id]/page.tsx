@@ -4,6 +4,7 @@ import { getSubjectDetailWithStats } from "@/lib/db";
 import { DIFFICULTY_DEFS } from "@/lib/difficulty";
 import ConfigNotice, { appConfigured } from "../../ConfigNotice";
 import GenerateFromSubjectForm from "./GenerateFromSubjectForm";
+import EditEtiquetasForm from "./EditEtiquetasForm";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function TemarioPage({
   const detail = await getSubjectDetailWithStats(id);
   if (!detail) notFound();
 
-  const { subject, tests } = detail;
+  const { subject, tests, etiquetas } = detail;
 
   return (
     <>
@@ -35,6 +36,16 @@ export default async function TemarioPage({
 
       <h1>{subject.nombre}</h1>
       {subject.descripcion && <p className="muted">{subject.descripcion}</p>}
+
+      {etiquetas.length > 0 && (
+        <div className="card-tags" style={{ marginBottom: 12 }}>
+          {etiquetas.map((e) => (
+            <span key={e.id} className="badge">
+              {e.nombre}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="panel">
         <div className="cta-row">
@@ -52,6 +63,13 @@ export default async function TemarioPage({
         <details className="gen-details">
           <summary>+ Generar nuevo test</summary>
           <GenerateFromSubjectForm subjectId={id} />
+        </details>
+        <details className="gen-details">
+          <summary>+ Editar etiquetas</summary>
+          <EditEtiquetasForm
+            subjectId={id}
+            etiquetasActuales={etiquetas.map((e) => e.nombre)}
+          />
         </details>
       </div>
 

@@ -61,6 +61,20 @@ export default function GenerateForm() {
       </div>
 
       <div className="field">
+        <label htmlFor="etiquetas">Etiquetas (opcional)</label>
+        <input
+          id="etiquetas"
+          name="etiquetas"
+          type="text"
+          placeholder="Ej. Constitución, Tema 7, Administrativo"
+          disabled={isPending}
+        />
+        <p className="hint">
+          Sepáralas por comas. Las nuevas se crean automáticamente.
+        </p>
+      </div>
+
+      <div className="field">
         <label>Dificultad</label>
         <div className="diff-grid">
           {DIFFICULTY_LIST.map((d, idx) => (

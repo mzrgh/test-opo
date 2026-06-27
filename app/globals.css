@@ -664,3 +664,50 @@ button.secondary {
     position: static;
   }
 }
+
+/* ── Etiquetas de temarios ───────────────────────────────────────────────── */
+.etq-filter {
+  margin: 14px 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.etq-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.etq-chip {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+.etq-chip:hover {
+  border-color: var(--accent);
+}
+.etq-chip.activa {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.etq-chip.etq-clear {
+  color: var(--muted);
+}
+
+/* Etiquetas dentro de las cards de temario */
+.card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
