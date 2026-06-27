@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { generateTest } from "@/lib/generate-test";
 import { insertTestWithQuestions } from "@/lib/db";
 import { isGenerationConfigured } from "@/lib/provider";
+import { contarPaginasPdf } from "@/lib/pdf-text";
+import { APP_CONFIG, MAX_PDF_BYTES } from "@/lib/app-config";
 import { supabase, isSupabaseConfigured, TEMARIOS_BUCKET } from "@/lib/supabase";
 import { DIFFICULTIES, type Dificultad } from "@/lib/test-contract";
 
@@ -40,9 +42,30 @@ export async function generateAction(
     return { error: "El fichero debe ser un PDF." };
   }
 
+  // Paso 1: tamaño del fichero subido (límite global en lib/app-config.ts).
+  if (file.size > MAX_PDF_BYTES) {
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    return {
+      error: `El PDF pesa ${mb} MB y el máximo permitido es ${APP_CONFIG.maxPdfMB} MB. Reduce el tamaño o divídelo en partes.`,
+    };
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
   const pdfBase64 = buffer.toString("base64");
   const pdfPath = `${randomUUID()}.pdf`;
+
+  // Paso 2: nº de páginas (antes de subir a Storage y de llamar al LLM).
+  let paginas: number;
+  try {
+    paginas = await contarPaginasPdf(pdfBase64);
+  } catch {
+    return { error: "No se pudo leer el PDF para contar sus páginas. ¿Está dañado?" };
+  }
+  if (paginas > APP_CONFIG.maxPdfPaginas) {
+    return {
+      error: `El temario tiene ${paginas} páginas y el máximo es ${APP_CONFIG.maxPdfPaginas}. Divídelo en partes más pequeñas.`,
+    };
+  }
 
   // 1) Subir el PDF a Storage.
   const { error: uploadErr } = await supabase.storage
@@ -127,6 +150,18 @@ export async function generateFromSubjectAction(
     return { error: `No se pudo leer el PDF del temario: ${dlErr?.message}` };
   }
   const pdfBase64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+
+  // Paso 2: nº de páginas (el límite puede haber cambiado desde que se subió).
+  try {
+    const paginas = await contarPaginasPdf(pdfBase64);
+    if (paginas > APP_CONFIG.maxPdfPaginas) {
+      return {
+        error: `El temario tiene ${paginas} páginas y el máximo es ${APP_CONFIG.maxPdfPaginas}. No se puede generar.`,
+      };
+    }
+  } catch {
+    return { error: "No se pudo leer el PDF del temario para contar sus páginas." };
+  }
 
   let generated;
   try {

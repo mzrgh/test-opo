@@ -1,0 +1,27 @@
+#!/bin/sh
+# Garantiza que todo commit que toque código actualice CHANGELOG.md.
+# Etapa: commit-msg (así podemos leer el mensaje y honrar [skip changelog]).
+# Escape puntual: incluir [skip changelog] en el mensaje, o usar 'git commit --no-verify'.
+
+msg_file="$1"
+
+# 1) Escape explícito en el mensaje (cambios triviales: typos, formato, etc.).
+if grep -qiE '\[skip changelog\]' "$msg_file"; then
+  exit 0
+fi
+
+# 2) ¿Hay cambios que cuenten como "evolución" (código / config relevante)?
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+needs_changelog=$(printf '%s\n' "$staged" | grep -E '^(app/|lib/|supabase/|package\.json|next\.config\.mjs|Dockerfile|docker-compose\.yml)' || true)
+has_changelog=$(printf '%s\n' "$staged" | grep -xE 'CHANGELOG\.md' || true)
+
+if [ -n "$needs_changelog" ] && [ -z "$has_changelog" ]; then
+  echo "" >&2
+  echo "✖ Commit bloqueado: has cambiado código pero no CHANGELOG.md." >&2
+  echo "  → Añade tu cambio en la sección '## [No publicado]' y 'git add CHANGELOG.md'." >&2
+  echo "  → Cambio trivial: añade [skip changelog] al mensaje, o usa 'git commit --no-verify'." >&2
+  echo "" >&2
+  exit 1
+fi
+
+exit 0

@@ -24,3 +24,14 @@ export async function extraerTextoPdf(pdfBase64: string): Promise<string> {
   }
   return limpio;
 }
+
+/**
+ * Cuenta las páginas de un PDF (en base64). Se usa para bloquear temarios
+ * demasiado largos antes de subirlos a Storage y de llamar al LLM.
+ * Lanza si el PDF no se puede leer (corrupto / no es PDF).
+ */
+export async function contarPaginasPdf(pdfBase64: string): Promise<number> {
+  const bytes = Uint8Array.from(Buffer.from(pdfBase64, "base64"));
+  const pdf = await getDocumentProxy(bytes);
+  return pdf.numPages;
+}

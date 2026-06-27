@@ -7,8 +7,19 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
-- (pendiente) Comparativa visual de intentos del mismo test (HU-17).
-- (pendiente) Modo repaso de preguntas falladas.
+### Añadido
+- **Límites de subida de temario** configurables en `lib/app-config.ts` (fuente única, no env):
+  tamaño máximo del PDF (`maxPdfMB`, por defecto 10 MB) y nº máximo de páginas
+  (`maxPdfPaginas`, por defecto 50). Validación en dos pasos en `generateAction` (tamaño →
+  páginas) **antes** de subir a Storage y de llamar al LLM; control de páginas también al
+  regenerar desde un temario existente. El formulario avisa del tamaño en cliente.
+- **Git hook de changelog** (`.githooks/commit-msg`): bloquea commits que tocan código sin
+  actualizar `CHANGELOG.md`. Autoinstalable vía `npm` (script `prepare` → `core.hooksPath`).
+  Escape: `[skip changelog]` en el mensaje o `git commit --no-verify`.
+
+### Pendiente
+- Comparativa visual de intentos del mismo test (HU-17).
+- Modo repaso de preguntas falladas.
 
 ## [0.4.0] - 2026-06-27
 
