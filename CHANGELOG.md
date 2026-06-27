@@ -7,6 +7,12 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Pendiente
+- Comparativa visual de intentos del mismo test (HU-17).
+- Modo repaso de preguntas falladas.
+
+## [0.7.0] - 2026-06-27
+
 ### Añadido
 - **Perfiles de uso (Gestor / Estudiante)** vía la variable de entorno
   `ENABLE_TEMARIO_MANAGEMENT` (`.env.local`). Con `TRUE` (perfil **Gestor**) se
@@ -19,10 +25,6 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
   accede ni escribiendo la URL ni invocando la acción. "Generar nuevo test" desde
   un temario existente sigue disponible para ambos perfiles. Lógica centralizada en
   `lib/perfil.ts` (`esGestor`).
-
-### Pendiente
-- Comparativa visual de intentos del mismo test (HU-17).
-- Modo repaso de preguntas falladas.
 
 ## [0.6.0] - 2026-06-27
 
@@ -109,7 +111,8 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
   `supabase/migrations/0001_init.sql`.
 - Pantalla de configuración cuando faltan credenciales (no rompe sin claves).
 
-[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.6.0...HEAD
+[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.7.0
 [0.6.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.6.0
 [0.5.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.5.0
 [0.4.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.4.0
