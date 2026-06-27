@@ -7,6 +7,12 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Pendiente
+- Comparativa visual de intentos del mismo test (HU-17).
+- Modo repaso de preguntas falladas.
+
+## [0.5.0] - 2026-06-27
+
 ### Añadido
 - **Límites de subida de temario** configurables en `lib/app-config.ts` (fuente única, no env):
   tamaño máximo del PDF (`maxPdfMB`, por defecto 10 MB) y nº máximo de páginas
@@ -16,10 +22,6 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 - **Git hook de changelog** (`.githooks/commit-msg`): bloquea commits que tocan código sin
   actualizar `CHANGELOG.md`. Autoinstalable vía `npm` (script `prepare` → `core.hooksPath`).
   Escape: `[skip changelog]` en el mensaje o `git commit --no-verify`.
-
-### Pendiente
-- Comparativa visual de intentos del mismo test (HU-17).
-- Modo repaso de preguntas falladas.
 
 ## [0.4.0] - 2026-06-27
 
@@ -82,7 +84,8 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
   `supabase/migrations/0001_init.sql`.
 - Pantalla de configuración cuando faltan credenciales (no rompe sin claves).
 
-[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.4.0...HEAD
+[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.5.0
 [0.4.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.4.0
 [0.3.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.3.0
 [0.2.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.2.0
