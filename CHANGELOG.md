@@ -7,6 +7,12 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Pendiente
+- Comparativa visual de intentos del mismo test (HU-17).
+- Modo repaso de preguntas falladas.
+
+## [0.6.0] - 2026-06-27
+
 ### Añadido
 - **Etiquetas de temarios** (relación N:M): tablas `etiquetas` y `subject_etiquetas`
   (migración `0002_etiquetas.sql`). Al subir un temario se pueden asignar etiquetas
@@ -16,10 +22,6 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
   `getEtiquetas`).
 - **Versión en el pie de página**: el footer muestra `Versión [x.y.z] - fecha`, derivada
   en build del `CHANGELOG.md` (fuente única, vía `next.config.mjs` → `env`).
-
-### Pendiente
-- Comparativa visual de intentos del mismo test (HU-17).
-- Modo repaso de preguntas falladas.
 
 ## [0.5.0] - 2026-06-27
 
@@ -94,7 +96,8 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
   `supabase/migrations/0001_init.sql`.
 - Pantalla de configuración cuando faltan credenciales (no rompe sin claves).
 
-[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.5.0...HEAD
+[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.6.0
 [0.5.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.5.0
 [0.4.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.4.0
 [0.3.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.3.0
