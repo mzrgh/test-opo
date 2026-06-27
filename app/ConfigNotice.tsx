@@ -1,11 +1,18 @@
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { isAnthropicConfigured } from "@/lib/anthropic";
+import { generationProvider, isGenerationConfigured } from "@/lib/provider";
 
-/** ¿Están las credenciales (Supabase + Anthropic) configuradas? */
-export const appConfigured = isSupabaseConfigured && isAnthropicConfigured;
+/** ¿Están las credenciales (Supabase + proveedor de generación) configuradas? */
+export const appConfigured = isSupabaseConfigured && isGenerationConfigured;
 
 /** Pantalla compartida cuando faltan credenciales en .env.local. */
 export default function ConfigNotice() {
+  const keyVar =
+    generationProvider.id === "deepseek"
+      ? "DEEPSEEK_API_KEY"
+      : generationProvider.id === "zai"
+        ? "ZAI_API_KEY"
+        : "ANTHROPIC_API_KEY";
+
   return (
     <div className="panel">
       <h1>Configura tus credenciales</h1>
@@ -19,8 +26,8 @@ export default function ConfigNotice() {
           <code>SUPABASE_URL</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code>)
         </li>
         <li>
-          {isAnthropicConfigured ? "✅" : "❌"} Anthropic (
-          <code>ANTHROPIC_API_KEY</code>)
+          {isGenerationConfigured ? "✅" : "❌"} {generationProvider.label} (
+          <code>{keyVar}</code>)
         </li>
       </ul>
       <p className="muted">

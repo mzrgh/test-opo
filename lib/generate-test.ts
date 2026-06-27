@@ -1,7 +1,7 @@
 import "server-only";
 
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic, GENERATION_MODEL } from "./anthropic";
+import { generationProvider } from "./provider";
+import { extraerTextoPdf } from "./pdf-text";
 import { DIFFICULTY_DEFS } from "./difficulty";
 import {
   GeneratedTestSchema,
@@ -14,7 +14,11 @@ import {
 
 const MAX_REINTENTOS = 3;
 
-function construirPrompt(dificultad: Dificultad, feedback: string[]): string {
+function construirPrompt(
+  dificultad: Dificultad,
+  feedback: string[],
+  temarioTexto: string | null,
+): string {
   const def = DIFFICULTY_DEFS[dificultad];
   const correccion = feedback.length
     ? `\n\nEn tu intento anterior hubo estos problemas. CORRÍGELOS en esta nueva versión:\n- ${feedback.join(
@@ -22,9 +26,31 @@ function construirPrompt(dificultad: Dificultad, feedback: string[]): string {
       )}`
     : "";
 
+  // El proveedor que no lee PDFs (DeepSeek) recibe el temario como texto y
+  // necesita un ejemplo explícito del JSON de salida (modo json_object).
+  const fuente = temarioTexto
+    ? `el siguiente temario (texto extraído del PDF):\n\n"""\n${temarioTexto}\n"""`
+    : "el temario adjunto (PDF)";
+
+  const formatoJson = temarioTexto
+    ? `\n\nResponde EXCLUSIVAMENTE con un objeto JSON válido (sin texto adicional ni markdown) con esta forma exacta:
+{
+  "descripcion": "string (1-2 frases)",
+  "preguntas": [
+    {
+      "enunciado": "string",
+      "opciones": ["opción A", "opción B", "opción C", "opción D"],
+      "indiceCorrecta": 0,
+      "explicacion": "string",
+      "refTemario": "string"
+    }
+  ]
+}`
+    : "";
+
   return `Eres un experto redactor de preguntas tipo test para oposiciones españolas.
 
-A partir EXCLUSIVAMENTE del temario adjunto (PDF), genera un test de EXACTAMENTE ${TOTAL_PREGUNTAS} preguntas.
+A partir EXCLUSIVAMENTE de ${fuente}, genera un test de EXACTAMENTE ${TOTAL_PREGUNTAS} preguntas.
 
 Nivel de dificultad solicitado: ${def.label}.
 ${def.promptGuidance}
@@ -39,13 +65,14 @@ Reglas obligatorias:
 - Varía la posición de la respuesta correcta entre las preguntas (no siempre la misma).
 - No repitas enunciados.
 - Redacta en el mismo idioma del temario.
-- "descripcion": 1-2 frases que resuman de qué trata el temario.${correccion}`;
+- "descripcion": 1-2 frases que resuman de qué trata el temario.${correccion}${formatoJson}`;
 }
 
 /**
  * Genera y valida un test a partir del PDF del temario.
- * Reintenta hasta MAX_REINTENTOS dándole a Claude el error concreto.
- * Lanza si no consigue un test válido.
+ * Reintenta hasta MAX_REINTENTOS dándole al modelo el error concreto.
+ * Lanza si no consigue un test válido (o si el PDF no tiene texto extraíble
+ * cuando el proveedor activo lo requiere).
  */
 export async function generateTest(
   pdfBase64: string,
@@ -53,52 +80,35 @@ export async function generateTest(
 ): Promise<GeneratedTest> {
   let feedback: string[] = [];
 
-  // Haiku 4.5 no admite adaptive thinking ni output_config.effort;
-  // solo los enviamos en modelos que los soportan (Opus 4.5+ / Sonnet 4.6).
-  const soportaThinking = !GENERATION_MODEL.includes("haiku");
+  // DeepSeek no lee PDFs: extraemos el texto UNA sola vez antes del loop. Si el
+  // PDF no tiene texto (escaneado), esto lanza y aborta la generación.
+  const temarioTexto = generationProvider.requiereTextoPlano
+    ? await extraerTextoPdf(pdfBase64)
+    : null;
 
   for (let intento = 1; intento <= MAX_REINTENTOS; intento++) {
     let parsed: GeneratedTest | null = null;
     try {
-      const response = await anthropic.messages.parse({
-        model: GENERATION_MODEL,
-        max_tokens: 32000,
-        ...(soportaThinking ? { thinking: { type: "adaptive" as const } } : {}),
-        output_config: {
-          ...(soportaThinking ? { effort: "high" as const } : {}),
-          format: zodOutputFormat(GeneratedTestSchema),
-        },
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "document",
-                source: {
-                  type: "base64",
-                  media_type: "application/pdf",
-                  data: pdfBase64,
-                },
-              },
-              { type: "text", text: construirPrompt(dificultad, feedback) },
-            ],
-          },
-        ],
+      const obj = await generationProvider.generarObjeto({
+        prompt: construirPrompt(dificultad, feedback, temarioTexto),
+        pdfBase64,
+        temarioTexto,
       });
-      parsed = response.parsed_output;
+      const res = GeneratedTestSchema.safeParse(obj);
+      if (!res.success) {
+        feedback = [
+          `La salida no cumplió el esquema requerido: ${res.error.message}. Devuelve exactamente ${TOTAL_PREGUNTAS} preguntas con la estructura pedida.`,
+        ];
+        continue;
+      }
+      parsed = res.data;
     } catch (e) {
-      // parse() lanza si la salida no encaja en el esquema: lo tratamos como
-      // un intento fallido y reintentamos con feedback en vez de abortar.
+      // El modelo falló o devolvió algo no parseable: reintentamos con feedback.
       feedback = [
         `La salida no se pudo parsear: ${
           e instanceof Error ? e.message : String(e)
         }. Devuelve exactamente ${TOTAL_PREGUNTAS} preguntas con la estructura pedida.`,
       ];
-      continue;
-    }
-
-    if (!parsed) {
-      feedback = [`La salida no cumplió el esquema requerido.`];
       continue;
     }
 

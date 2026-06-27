@@ -14,8 +14,13 @@ temario en PDF, eliges la dificultad y Claude genera un test de **40 preguntas**
 - **Next.js (App Router, TypeScript)** en localhost — frontend + Server Actions.
 - **Supabase** — Postgres (datos) + Storage (PDFs). Sin auth ni RLS: el guardián
   es que el backend solo corre en tu PC y usa la `service_role` key en servidor.
-- **Claude (API de Anthropic)** — lee el PDF de forma nativa y genera el test con
-  **salida estructurada** (`messages.parse` + `zodOutputFormat`) validada con Zod.
+- **LLM de generación, conmutable** (`LLM_PROVIDER`):
+  - **Claude (Anthropic)** — lee el PDF de forma nativa y genera con **salida
+    estructurada** (`messages.parse` + `zodOutputFormat`).
+  - **DeepSeek** (`deepseek-v4-flash`) y **z.ai / GLM** (`glm-4.7-flashx`) — más
+    baratos, API compatible con OpenAI; **no leen PDFs**, así que el temario se
+    extrae a texto con `unpdf` y se valida en código.
+  - En todos los casos la salida se valida con Zod + invariantes y se reintenta.
 
 ## Puesta en marcha
 
@@ -34,9 +39,15 @@ temario en PDF, eliges la dificultad y Claude genera un test de **40 preguntas**
    cp .env.example .env.local
    ```
    - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`: Supabase → Settings → API.
-   - `ANTHROPIC_API_KEY`: [console.anthropic.com](https://console.anthropic.com).
-   - `ANTHROPIC_MODEL` (opcional): por defecto `claude-opus-4-8`. Para abaratar,
-     `claude-sonnet-4-6`.
+   - `LLM_PROVIDER` (opcional): `anthropic` (por defecto), `deepseek` o `zai`.
+   - Si `anthropic`: `ANTHROPIC_API_KEY` ([console.anthropic.com](https://console.anthropic.com))
+     y `ANTHROPIC_MODEL` (opcional, por defecto `claude-opus-4-8`; para abaratar
+     `claude-sonnet-4-6`).
+   - Si `deepseek`: `DEEPSEEK_API_KEY` ([platform.deepseek.com](https://platform.deepseek.com))
+     y `DEEPSEEK_MODEL` (opcional, por defecto `deepseek-v4-flash`).
+   - Si `zai`: `ZAI_API_KEY` ([z.ai](https://z.ai)) y `ZAI_MODEL` (opcional, por
+     defecto `glm-4.7-flashx`).
+   - Ojo: DeepSeek y z.ai no leen PDFs escaneados (sin OCR no hay texto que extraer).
 
 4. **Arrancar**
    ```bash
@@ -141,9 +152,13 @@ app/
 lib/
   difficulty.ts       Definición única de dificultad (UI + prompt)
   test-contract.ts    Esquema Zod + invariantes del test generado
-  generate-test.ts    Llamada a Claude + validación + reintentos
-  supabase.ts         Cliente de servidor (service_role)
+  generate-test.ts    Orquestación (prompt + validación + reintentos), agnóstico de proveedor
+  provider.ts         Capa conmutable de proveedor (Anthropic | DeepSeek | z.ai)
   anthropic.ts        Cliente de Claude + modelo
+  deepseek.ts         Cliente de DeepSeek (compatible OpenAI) + modelo
+  zai.ts              Cliente de z.ai / GLM (compatible OpenAI) + modelo
+  pdf-text.ts         Extracción de texto del PDF (unpdf), para proveedores sin lectura nativa
+  supabase.ts         Cliente de servidor (service_role)
   db.ts               Lecturas (temarios, tests, preguntas)
 supabase/migrations/
   0001_init.sql       Esquema completo (incl. attempts/answers para Objetivo 2)

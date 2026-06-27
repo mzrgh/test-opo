@@ -44,11 +44,23 @@ huérfanas en BD.
 + `preguntas[]`. El servidor es la fuente de verdad de `id`, `dificultad` (ya la eligió
 el usuario) y `fechaGeneracion`. No pedir esos campos al LLM.
 
-**Salida estructurada** — se fuerza con `messages.parse()` + `zodOutputFormat()` del SDK
-de Anthropic (NO tool use manual). `lib/generate-test.ts` valida con Zod + invariantes
-cruzadas (`validateInvariants`: 40 preguntas, 4 opciones únicas, índice en rango, sin
-enunciados repetidos) y **reintenta hasta 3 veces** devolviéndole a Claude el error
-concreto. Nunca se persiste un test que no pase la validación.
+**Proveedor de generación conmutable** (`lib/provider.ts`) — `LLM_PROVIDER` (env, default
+`anthropic`) elige entre **Anthropic**, **DeepSeek** y **z.ai/GLM**. `lib/generate-test.ts`
+es agnóstico: construye el prompt, llama a `generationProvider.generarObjeto()` y valida.
+Cada proveedor encapsula su SDK:
+- **anthropic** (`lib/anthropic.ts`): `messages.parse()` + `zodOutputFormat()`, lee el PDF
+  nativo (bloque `document`), thinking/effort condicionados a que no sea Haiku.
+- **deepseek** (`lib/deepseek.ts`) y **zai** (`lib/zai.ts`): ambos SDK `openai` (compatibles
+  OpenAI) vía el helper `openAiCompatProvider`, con `response_format: json_object`. Defaults
+  `deepseek-v4-flash` (NO `deepseek-chat`/`deepseek-reasoner`: se deprecan 2026/07/24) y
+  `glm-4.7-flashx`. **No leen PDFs**: el temario se extrae a texto con `unpdf`
+  (`lib/pdf-text.ts`) una vez antes del loop; PDFs escaneados sin OCR lanzan error. El texto
+  es efímero; el **PDF original siempre se almacena y se sirve** igual (Storage intacto).
+
+**Salida estructurada** — `lib/generate-test.ts` valida con `GeneratedTestSchema.safeParse`
++ invariantes cruzadas (`validateInvariants`: 40 preguntas, 4 opciones únicas, índice en
+rango, sin enunciados repetidos) y **reintenta hasta 3 veces** devolviéndole al modelo el
+error concreto. Nunca se persiste un test que no pase la validación.
 
 **Zod v4, no v3** — el helper `zodOutputFormat` del SDK importa de `zod/v4`. Los esquemas
 que se le pasan DEBEN importar `import { z } from "zod/v4"` (no `"zod"`), o el typecheck
@@ -62,14 +74,17 @@ salen del mismo sitio para que nunca diverjan. Al tocar dificultad, edita solo a
 key (salta RLS; no hay RLS porque es single-user). NUNCA importar en componentes cliente.
 `lib/db.ts` y `lib/generate-test.ts` llevan `import "server-only"` como salvaguarda.
 
-**Sin credenciales no peta** — `isSupabaseConfigured` / `isAnthropicConfigured` detectan
-placeholders; la home muestra una pantalla de configuración en vez de fallar. Útil para
-arrancar antes de tener claves.
+**Sin credenciales no peta** — `isSupabaseConfigured` / `isGenerationConfigured` (esta
+última resuelve el flag del proveedor activo, en `lib/provider.ts`) detectan placeholders;
+la home muestra una pantalla de configuración en vez de fallar. Usa `isGenerationConfigured`,
+no `isAnthropicConfigured` directamente, en código de UI/acciones.
 
 ## Convenciones
 
-- Modelo de generación configurable vía `ANTHROPIC_MODEL` (default `claude-opus-4-8`;
-  bajar a `claude-sonnet-4-6` para abaratar). Definido en `lib/anthropic.ts`.
+- Proveedor de generación vía `LLM_PROVIDER` (`anthropic` | `deepseek` | `zai`, default
+  `anthropic`). Modelo Anthropic vía `ANTHROPIC_MODEL` (default `claude-opus-4-8`;
+  `claude-sonnet-4-6` para abaratar). Modelo DeepSeek vía `DEEPSEEK_MODEL` (default
+  `deepseek-v4-flash`). Modelo z.ai vía `ZAI_MODEL` (default `glm-4.7-flashx`).
 - Nombres de dominio en **español** (`subjects`, `tests`, `questions`, `dificultad`,
   `enunciado`, `opciones`, `indiceCorrecta`). Mantenerlo.
 - El esquema SQL vive en `supabase/migrations/0001_init.sql` y se ejecuta a mano en el

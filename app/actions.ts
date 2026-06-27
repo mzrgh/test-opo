@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 import { generateTest } from "@/lib/generate-test";
 import { insertTestWithQuestions } from "@/lib/db";
-import { isAnthropicConfigured } from "@/lib/anthropic";
+import { isGenerationConfigured } from "@/lib/provider";
 import { supabase, isSupabaseConfigured, TEMARIOS_BUCKET } from "@/lib/supabase";
 import { DIFFICULTIES, type Dificultad } from "@/lib/test-contract";
 
@@ -18,10 +18,10 @@ export async function generateAction(
   _prev: GenerateState,
   formData: FormData,
 ): Promise<GenerateState> {
-  if (!isSupabaseConfigured || !isAnthropicConfigured) {
+  if (!isSupabaseConfigured || !isGenerationConfigured) {
     return {
       error:
-        "Faltan credenciales en .env.local (Supabase y/o Anthropic). Configúralas y reinicia el servidor.",
+        "Faltan credenciales en .env.local (Supabase y/o el proveedor de generación). Configúralas y reinicia el servidor.",
     };
   }
 
@@ -94,10 +94,10 @@ export async function generateFromSubjectAction(
   _prev: GenerateState,
   formData: FormData,
 ): Promise<GenerateState> {
-  if (!isSupabaseConfigured || !isAnthropicConfigured) {
+  if (!isSupabaseConfigured || !isGenerationConfigured) {
     return {
       error:
-        "Faltan credenciales en .env.local (Supabase y/o Anthropic). Configúralas y reinicia el servidor.",
+        "Faltan credenciales en .env.local (Supabase y/o el proveedor de generación). Configúralas y reinicia el servidor.",
     };
   }
 

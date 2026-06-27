@@ -5,6 +5,9 @@
 /.next
 /out
 
+# artefacto incremental de TypeScript
+/tsconfig.tsbuildinfo
+
 # entorno (NUNCA commitear las claves)
 .env.local
 .env*.local
