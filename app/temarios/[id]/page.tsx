@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSubjectDetailWithStats } from "@/lib/db";
 import { DIFFICULTY_DEFS } from "@/lib/difficulty";
+import { esGestor } from "@/lib/perfil";
 import ConfigNotice, { appConfigured } from "../../ConfigNotice";
 import GenerateFromSubjectForm from "./GenerateFromSubjectForm";
 import EditEtiquetasForm from "./EditEtiquetasForm";
@@ -27,6 +28,7 @@ export default async function TemarioPage({
   if (!detail) notFound();
 
   const { subject, tests, etiquetas } = detail;
+  const gestor = esGestor();
 
   return (
     <>
@@ -64,13 +66,15 @@ export default async function TemarioPage({
           <summary>+ Generar nuevo test</summary>
           <GenerateFromSubjectForm subjectId={id} />
         </details>
-        <details className="gen-details">
-          <summary>+ Editar etiquetas</summary>
-          <EditEtiquetasForm
-            subjectId={id}
-            etiquetasActuales={etiquetas.map((e) => e.nombre)}
-          />
-        </details>
+        {gestor && (
+          <details className="gen-details">
+            <summary>+ Editar etiquetas</summary>
+            <EditEtiquetasForm
+              subjectId={id}
+              etiquetasActuales={etiquetas.map((e) => e.nombre)}
+            />
+          </details>
+        )}
       </div>
 
       <h2>Tests ({tests.length})</h2>

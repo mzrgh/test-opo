@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTestDetail } from "@/lib/db";
 import { DIFFICULTY_DEFS } from "@/lib/difficulty";
+import { esGestor } from "@/lib/perfil";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export default async function SolucionarioPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // Perfil Estudiante: el solucionario (spoiler) no es accesible.
+  if (!esGestor()) redirect("/");
   const { id } = await params;
   const detail = await getTestDetail(id);
   if (!detail) notFound();

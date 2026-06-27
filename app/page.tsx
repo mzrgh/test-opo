@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/db";
 import { DIFFICULTY_DEFS } from "@/lib/difficulty";
+import { esGestor } from "@/lib/perfil";
 import ConfigNotice, { appConfigured } from "./ConfigNotice";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,7 @@ export default async function Dashboard() {
   if (!appConfigured) return <ConfigNotice />;
 
   const stats = await getDashboardStats();
+  const gestor = esGestor();
 
   const kpis = [
     { label: "Temarios subidos", value: stats.nTemarios },
@@ -91,9 +93,11 @@ export default async function Dashboard() {
       </div>
 
       <div className="quick-row">
-        <Link href="/generar" className="quick-cta">
-          + Subir nuevo temario
-        </Link>
+        {gestor && (
+          <Link href="/generar" className="quick-cta">
+            + Subir nuevo temario
+          </Link>
+        )}
         <Link href="/temarios" className="quick-cta secondary-cta">
           Realizar / Consultar tests
         </Link>

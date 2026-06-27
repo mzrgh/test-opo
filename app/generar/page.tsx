@@ -1,9 +1,13 @@
+import { redirect } from "next/navigation";
 import GenerateForm from "../GenerateForm";
 import ConfigNotice, { appConfigured } from "../ConfigNotice";
+import { esGestor } from "@/lib/perfil";
 
 export const dynamic = "force-dynamic";
 
 export default function GenerarPage() {
+  // Perfil Estudiante: la subida de temarios está deshabilitada en esta instancia.
+  if (!esGestor()) redirect("/");
   if (!appConfigured) return <ConfigNotice />;
 
   return (

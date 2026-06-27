@@ -5,11 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const SECCIONES = [
-  { href: "/", label: "Dashboard", match: (p: string) => p === "/" },
+  { href: "/", label: "Dashboard", match: (p: string) => p === "/", soloGestor: false },
   {
     href: "/generar",
     label: "Subir nuevo temario",
     match: (p: string) => p.startsWith("/generar"),
+    soloGestor: true,
   },
   {
     href: "/temarios",
@@ -18,11 +19,13 @@ const SECCIONES = [
       p.startsWith("/temarios") ||
       p.startsWith("/tests") ||
       p.startsWith("/attempts"),
+    soloGestor: false,
   },
 ];
 
-export default function TopNav() {
+export default function TopNav({ gestor }: { gestor: boolean }) {
   const pathname = usePathname() ?? "/";
+  const secciones = SECCIONES.filter((s) => gestor || !s.soloGestor);
   return (
     <header className="topbar">
       <Link href="/" className="topbar-brand" aria-label="Inicio">
@@ -37,7 +40,7 @@ export default function TopNav() {
         <span className="topbar-title">TESTS-OPO-Hector</span>
       </Link>
       <nav className="topbar-nav">
-        {SECCIONES.map((s) => (
+        {secciones.map((s) => (
           <Link
             key={s.href}
             href={s.href}

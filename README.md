@@ -49,6 +49,9 @@ temario en PDF, eliges la dificultad y Claude genera un test de **40 preguntas**
    - Si `zai`: `ZAI_API_KEY` ([z.ai](https://z.ai)) y `ZAI_MODEL` (opcional, por
      defecto `glm-4.7-flashx`).
    - Ojo: DeepSeek y z.ai no leen PDFs escaneados (sin OCR no hay texto que extraer).
+   - `ENABLE_TEMARIO_MANAGEMENT` (opcional): perfil de la instancia. `TRUE` =
+     **Gestor** (puede subir temarios, editar etiquetas y ver el solucionario);
+     `FALSE`/ausente = **Estudiante** (solo realiza y consulta tests). Ver más abajo.
 
 4. **Arrancar**
    ```bash
@@ -119,6 +122,23 @@ Requiere una cuenta en [hub.docker.com](https://hub.docker.com) y un repositorio
 > Cada equipo necesita sus credenciales (`.env.example` como plantilla; **nunca compartas tu
 > `.env.local`**) y su proyecto Supabase con la migración aplicada. Si el repositorio es
 > privado, los demás deben tener acceso y hacer `docker login`.
+
+## Perfiles de uso (Gestor / Estudiante)
+
+La variable `ENABLE_TEMARIO_MANAGEMENT` define dos perfiles para la misma app:
+
+| | **Gestor** (`TRUE`) | **Estudiante** (`FALSE` / ausente) |
+| --- | --- | --- |
+| Subir temarios nuevos (`/generar`) | ✅ | ❌ |
+| Editar etiquetas de un temario | ✅ | ❌ |
+| Ver solucionario (spoiler) | ✅ | ❌ |
+| Realizar / consultar tests | ✅ | ✅ |
+| Generar test desde un temario ya subido | ✅ | ✅ |
+
+El bloqueo del Estudiante es **doble**: las funciones se ocultan en la interfaz y, además,
+se rechazan en el servidor (las rutas redirigen y las Server Actions devuelven error), de
+modo que no se accede ni escribiendo la URL directamente. Por defecto, si la variable falta
+o tiene un valor inválido, se aplica el perfil **Estudiante** (más restrictivo).
 
 ## Cómo funciona la generación
 

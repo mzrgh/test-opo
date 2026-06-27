@@ -6,6 +6,7 @@ import {
   getFinishedAttempts,
 } from "@/lib/db";
 import { DIFFICULTY_DEFS } from "@/lib/difficulty";
+import { esGestor } from "@/lib/perfil";
 import { startAttempt } from "@/app/attempt-actions";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,7 @@ export default async function TestPage({
 
   // startAttempt necesita el testId; lo fijamos con bind para usarlo como action.
   const startThisAttempt = startAttempt.bind(null, id);
+  const gestor = esGestor();
 
   return (
     <>
@@ -74,9 +76,11 @@ export default async function TestPage({
               ▶ Continuar test en curso
             </Link>
           )}
-          <Link href={`/tests/${id}/solucionario`} className="btn-link muted">
-            Ver solucionario (spoiler)
-          </Link>
+          {gestor && (
+            <Link href={`/tests/${id}/solucionario`} className="btn-link muted">
+              Ver solucionario (spoiler)
+            </Link>
+          )}
         </div>
         {mejor !== null && (
           <p className="hint">

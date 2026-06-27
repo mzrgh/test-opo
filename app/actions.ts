@@ -11,6 +11,7 @@ import {
   reemplazarEtiquetas,
 } from "@/lib/db";
 import { isGenerationConfigured } from "@/lib/provider";
+import { esGestor } from "@/lib/perfil";
 import { contarPaginasPdf } from "@/lib/pdf-text";
 import { APP_CONFIG, MAX_PDF_BYTES } from "@/lib/app-config";
 import { supabase, isSupabaseConfigured, TEMARIOS_BUCKET } from "@/lib/supabase";
@@ -33,6 +34,10 @@ export async function generateAction(
   _prev: GenerateState,
   formData: FormData,
 ): Promise<GenerateState> {
+  // Perfil Estudiante: subir temarios está deshabilitado (blindaje en servidor).
+  if (!esGestor()) {
+    return { error: "Esta instancia no permite subir temarios (perfil Estudiante)." };
+  }
   if (!isSupabaseConfigured || !isGenerationConfigured) {
     return {
       error:
@@ -216,6 +221,10 @@ export async function updateSubjectEtiquetasAction(
   _prev: GenerateState,
   formData: FormData,
 ): Promise<GenerateState> {
+  // Perfil Estudiante: gestionar etiquetas está deshabilitado (blindaje en servidor).
+  if (!esGestor()) {
+    return { error: "Esta instancia no permite editar etiquetas (perfil Estudiante)." };
+  }
   if (!isSupabaseConfigured) {
     return { error: "Falta configuración de Supabase en .env.local." };
   }

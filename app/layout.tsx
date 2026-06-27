@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import TopNav from "./TopNav";
 import Footer from "./Footer";
+import { esGestor } from "@/lib/perfil";
 
 export const metadata: Metadata = {
   title: "TESTS-OPO-Hector",
@@ -17,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <TopNav />
+        <TopNav gestor={esGestor()} />
         <main id="top" className="container">
           {children}
         </main>

@@ -144,6 +144,26 @@ las páginas con datos hacen `if (!appConfigured) return <ConfigNotice />`.
 `/tests/[id]/solucionario` = soluciones abiertas. `/attempts/[id]/run` = examen (client).
 `/attempts/[id]/result` = corrección + revisión.
 
+## Perfiles de uso (Gestor / Estudiante)
+
+`lib/perfil.ts` (`esGestor()`, **server-only**) lee la env `ENABLE_TEMARIO_MANAGEMENT`:
+`TRUE` ⇒ **Gestor**; cualquier otra cosa (ausente/ inválida) ⇒ **Estudiante** (fail-safe,
+restrictivo). El Estudiante NO puede: subir temarios (`/generar`), ver el solucionario
+(`/tests/[id]/solucionario`) ni editar etiquetas. Sí realiza/consulta tests y puede
+**generar un test nuevo desde un temario ya existente** (decisión explícita: esa función
+queda disponible para ambos perfiles).
+
+El control es **doble (UI + servidor)**, nunca solo cosmético:
+- **UI**: `TopNav` recibe `gestor` como prop desde `layout.tsx` (la env no llega al cliente
+  sin `NEXT_PUBLIC_`; se pasa desde el server component). Dashboard, `/tests/[id]` y
+  `/temarios/[id]` ocultan sus controles con `esGestor()`.
+- **Servidor**: las rutas `/generar` y `/tests/[id]/solucionario` hacen `redirect("/")` si
+  no es Gestor; las Server Actions `generateAction` y `updateSubjectEtiquetasAction`
+  rechazan en modo Estudiante (`generateFromSubjectAction` NO se bloquea).
+
+Al añadir una función de gestión nueva, protégela en ambos planos (ocultar en UI **y**
+blindar la ruta/action), nunca solo uno.
+
 ## Pendiente
 
 Comparativa visual de intentos del mismo test (`HU-17`, ya hay datos), modo repaso de

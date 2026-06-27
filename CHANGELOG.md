@@ -7,6 +7,19 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Añadido
+- **Perfiles de uso (Gestor / Estudiante)** vía la variable de entorno
+  `ENABLE_TEMARIO_MANAGEMENT` (`.env.local`). Con `TRUE` (perfil **Gestor**) se
+  habilitan las funciones de gestión; con `FALSE`, ausente o valor inválido se
+  aplica el perfil **Estudiante** (fail-safe). En modo Estudiante se ocultan y se
+  bloquean en servidor: **"+ Subir nuevo temario"** (menú y Dashboard, ruta
+  `/generar`), **"Ver solucionario (spoiler)"** (`/tests/[id]` y la ruta
+  `/tests/[id]/solucionario`) y **"+ Editar etiquetas"** (`/temarios/[id]` y la
+  Server Action correspondiente). El bloqueo es UI + servidor: un Estudiante no
+  accede ni escribiendo la URL ni invocando la acción. "Generar nuevo test" desde
+  un temario existente sigue disponible para ambos perfiles. Lógica centralizada en
+  `lib/perfil.ts` (`esGestor`).
+
 ### Pendiente
 - Comparativa visual de intentos del mismo test (HU-17).
 - Modo repaso de preguntas falladas.
