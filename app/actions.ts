@@ -11,6 +11,7 @@ import {
   reemplazarEtiquetas,
 } from "@/lib/db";
 import { isGenerationConfigured } from "@/lib/provider";
+import { validarEtiquetas, combinarEtiquetas } from "@/lib/etiquetas";
 import { esGestor } from "@/lib/perfil";
 import { contarPaginasPdf } from "@/lib/pdf-text";
 import { APP_CONFIG, MAX_PDF_BYTES } from "@/lib/app-config";
@@ -47,13 +48,18 @@ export async function generateAction(
 
   const nombre = String(formData.get("nombre") ?? "").trim();
   const dificultad = String(formData.get("dificultad") ?? "") as Dificultad;
-  const etiquetas = parseEtiquetas(formData.get("etiquetas"));
+  const nivel = String(formData.get("nivel") ?? "").trim();
+  const etiquetasLibres = parseEtiquetas(formData.get("etiquetas"));
   const file = formData.get("pdf");
 
   if (!nombre) return { error: "Indica un nombre para el temario." };
   if (!DIFFICULTIES.includes(dificultad)) {
     return { error: "Selecciona una dificultad válida." };
   }
+  // Etiquetas: se valida ANTES de subir el PDF / generar para no dejar huérfanos.
+  const errEtiquetas = validarEtiquetas(nivel, etiquetasLibres);
+  if (errEtiquetas) return { error: errEtiquetas };
+  const etiquetas = combinarEtiquetas(nivel, etiquetasLibres);
   if (!(file instanceof File) || file.size === 0) {
     return { error: "Adjunta el PDF del temario." };
   }
@@ -120,7 +126,7 @@ export async function generateAction(
   // Etiquetas: crea las que falten y las vincula. Si falla, deshace el temario
   // y el PDF para no dejar estado inconsistente.
   try {
-    if (etiquetas.length > 0) await asignarEtiquetas(subject.id, etiquetas);
+    await asignarEtiquetas(subject.id, etiquetas);
   } catch (e) {
     await supabase.storage.from(TEMARIOS_BUCKET).remove([pdfPath]);
     await supabase.from("subjects").delete().eq("id", subject.id);
@@ -232,7 +238,11 @@ export async function updateSubjectEtiquetasAction(
   const subjectId = String(formData.get("subjectId") ?? "").trim();
   if (!subjectId) return { error: "Temario no válido." };
 
-  const etiquetas = parseEtiquetas(formData.get("etiquetas"));
+  const nivel = String(formData.get("nivel") ?? "").trim();
+  const etiquetasLibres = parseEtiquetas(formData.get("etiquetas"));
+  const errEtiquetas = validarEtiquetas(nivel, etiquetasLibres);
+  if (errEtiquetas) return { error: errEtiquetas };
+  const etiquetas = combinarEtiquetas(nivel, etiquetasLibres);
   try {
     await reemplazarEtiquetas(subjectId, etiquetas);
   } catch (e) {

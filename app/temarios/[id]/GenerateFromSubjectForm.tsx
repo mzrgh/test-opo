@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { generateFromSubjectAction, type GenerateState } from "@/app/actions";
+import GenerationProgress from "@/app/GenerationProgress";
 import { DIFFICULTY_LIST } from "@/lib/difficulty";
 
 const initialState: GenerateState = {};
@@ -49,12 +50,7 @@ export default function GenerateFromSubjectForm({
           ? "Generando… (puede tardar 1-3 min)"
           : "Generar test con esta dificultad"}
       </button>
-      {isPending && (
-        <p className="hint">
-          Claude está leyendo el PDF del temario y redactando el test. No cierres
-          la página.
-        </p>
-      )}
+      <GenerationProgress active={isPending} />
     </form>
   );
 }

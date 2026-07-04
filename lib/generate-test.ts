@@ -6,13 +6,56 @@ import { DIFFICULTY_DEFS } from "./difficulty";
 import {
   GeneratedTestSchema,
   MIN_PREGUNTAS,
+  OPCIONES_POR_PREGUNTA,
   TOTAL_PREGUNTAS,
   validateInvariants,
   type Dificultad,
+  type GeneratedQuestion,
   type GeneratedTest,
 } from "./test-contract";
 
 const MAX_REINTENTOS = 3;
+
+/** Fisher–Yates. Servidor: Math.random es aceptable (no hay requisito criptográfico). */
+function barajar<T>(arr: readonly T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Reparte la posición de la respuesta correcta equitativamente entre A/B/C/D y
+ * baraja el resto de opciones. Elimina de raíz el sesgo del modelo a concentrar
+ * la correcta en una letra (típicamente la B). Determinista en distribución
+ * (~10 por letra en 40 preguntas), 0 coste de tokens.
+ *
+ * Requisito: las opciones NO deben ser auto-referenciales por posición (se
+ * prohíbe en el prompt y lo verifica validateInvariants antes de llegar aquí).
+ */
+function equilibrarRespuestas(
+  preguntas: GeneratedQuestion[],
+): GeneratedQuestion[] {
+  // Bolsa balanceada de índices objetivo (0,1,2,3,0,1,2,3,…) barajada.
+  const objetivos = barajar(
+    preguntas.map((_, i) => i % OPCIONES_POR_PREGUNTA),
+  );
+
+  return preguntas.map((q, i) => {
+    const destino = objetivos[i];
+    const correcta = q.opciones[q.indiceCorrecta];
+    const otras = barajar(
+      q.opciones.filter((_, idx) => idx !== q.indiceCorrecta),
+    );
+    let k = 0;
+    const opciones = q.opciones.map((_, pos) =>
+      pos === destino ? correcta : otras[k++],
+    );
+    return { ...q, opciones, indiceCorrecta: destino };
+  });
+}
 
 function construirPrompt(
   dificultad: Dificultad,
@@ -59,13 +102,20 @@ Reglas obligatorias:
 - Exactamente ${TOTAL_PREGUNTAS} preguntas.
 - Cada pregunta tiene EXACTAMENTE 4 opciones y SOLO UNA correcta.
 - Las 4 opciones de una pregunta deben ser distintas entre sí.
+- Cada opción debe ser INDEPENDIENTE y autocontenida. PROHIBIDO usar opciones que se refieran a otras por su posición o letra, como "Todas las anteriores", "Ninguna de las anteriores", "Las respuestas a) y c) son correctas" o similares (el orden de las opciones se reordena después, así que romperían la pregunta).
 - Básate ÚNICAMENTE en el contenido del temario. NO inventes datos que no estén en él.
 - Para cada pregunta incluye "refTemario": un fragmento textual del temario que justifique la respuesta correcta (sirve de anclaje anti-alucinación).
 - Para cada pregunta incluye "explicacion": por qué la opción correcta lo es.
-- Varía la posición de la respuesta correcta entre las preguntas (no siempre la misma).
 - No repitas enunciados.
 - Redacta en el mismo idioma del temario.
-- "descripcion": 1-2 frases que resuman de qué trata el temario.${correccion}${formatoJson}`;
+- "descripcion": 1-2 frases que resuman de qué trata el temario.
+
+Estilo (examen oficial de oposición española):
+- Enunciados formales, precisos y de una sola idea; sin ambigüedades ni "trucos" gramaticales.
+- Cuando el temario cite normativa, formula al estilo oficial ("De conformidad con lo dispuesto en el art. X de la Ley .../ de la Constitución Española, …"), SOLO si el artículo/dato figura en el temario (nunca lo inventes).
+- Combina tipos de pregunta: definiciones y conceptos directos ("Una sede electrónica es:"), y supuestos prácticos ("¿Qué ocurre si un usuario tiene permiso de Lectura a nivel de recurso y Modificación a nivel NTFS?").
+- Distractores plausibles pero inequívocamente incorrectos, homogéneos con la opción correcta en longitud, registro y formato (no hagas la correcta más larga o más detallada que las demás).
+- No repitas literalmente frases del temario como enunciado: reformula.${correccion}${formatoJson}`;
 }
 
 /**
@@ -127,7 +177,13 @@ export async function generateTest(
     }
 
     const errores = validateInvariants(parsed);
-    if (errores.length === 0) return parsed;
+    if (errores.length === 0) {
+      // Reparte la respuesta correcta entre A/B/C/D (anti-sesgo del modelo).
+      return {
+        ...parsed,
+        preguntas: equilibrarRespuestas(parsed.preguntas),
+      };
+    }
     feedback = errores;
   }
 

@@ -2,7 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { generateAction, type GenerateState } from "./actions";
+import GenerationProgress from "./GenerationProgress";
 import { DIFFICULTY_LIST } from "@/lib/difficulty";
+import { NIVELES } from "@/lib/etiquetas";
 import { APP_CONFIG, MAX_PDF_BYTES } from "@/lib/app-config";
 
 const initialState: GenerateState = {};
@@ -61,16 +63,35 @@ export default function GenerateForm() {
       </div>
 
       <div className="field">
-        <label htmlFor="etiquetas">Etiquetas (opcional)</label>
+        <label htmlFor="nivel">Tipo (obligatorio)</label>
+        <select id="nivel" name="nivel" defaultValue="" disabled={isPending} required>
+          <option value="" disabled>
+            Selecciona un tipo…
+          </option>
+          {NIVELES.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <p className="hint">
+          Cada temario pertenece a un único tipo: {NIVELES.join(" o ")}.
+        </p>
+      </div>
+
+      <div className="field">
+        <label htmlFor="etiquetas">Etiquetas</label>
         <input
           id="etiquetas"
           name="etiquetas"
           type="text"
           placeholder="Ej. Constitución, Tema 7, Administrativo"
           disabled={isPending}
+          required
         />
         <p className="hint">
-          Sepáralas por comas. Las nuevas se crean automáticamente.
+          Sepáralas por comas (al menos una, además del Tipo). Las nuevas se
+          crean automáticamente.
         </p>
       </div>
 
@@ -99,11 +120,7 @@ export default function GenerateForm() {
       <button type="submit" disabled={isPending || avisoTamano !== null}>
         {isPending ? "Generando 40 preguntas… (puede tardar 1-3 min)" : "Generar test"}
       </button>
-      {isPending && (
-        <p className="hint">
-          Claude está leyendo el PDF y redactando el test. No cierres la página.
-        </p>
-      )}
+      <GenerationProgress active={isPending} />
     </form>
   );
 }

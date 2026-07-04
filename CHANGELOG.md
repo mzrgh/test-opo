@@ -11,6 +11,30 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 - Comparativa visual de intentos del mismo test (HU-17).
 - Modo repaso de preguntas falladas.
 
+## [0.8.0] - 2026-07-04
+
+### Añadido
+- **Feedback de progreso en la generación**: barra animada + mensajes de fase
+  ("Leyendo el PDF…", "Redactando 40 preguntas…", "Validando y equilibrando
+  respuestas…") mientras se genera un test, en `/generar` y al regenerar desde un
+  temario. Componente cliente reutilizable `app/GenerationProgress.tsx` (progreso
+  simulado, sin canal de backend nuevo).
+- **Tipo obligatorio en los temarios**: todo temario debe tener exactamente un
+  Tipo (**General** o **Informática**, mutuamente excluyentes) y al menos otra
+  etiqueta libre (mínimo 2 en total). Reglas centralizadas en `lib/etiquetas.ts`,
+  con selector de Tipo en los formularios de subida y edición y validación doble
+  (cliente + Server Actions).
+
+### Cambiado
+- **Reparto equilibrado de respuestas correctas** entre A/B/C/D: tras generar y
+  validar, el servidor baraja las opciones y reparte la posición correcta de forma
+  balanceada (`equilibrarRespuestas` en `lib/generate-test.ts`), eliminando el sesgo
+  del modelo a concentrar la correcta en la B. Determinista y sin coste de tokens.
+- **Prompt con estilo de examen oficial de oposición**: enunciados formales, citas
+  normativas al estilo oficial (solo si figuran en el temario), supuestos prácticos y
+  distractores homogéneos. Se prohíben opciones auto-referenciales ("todas las
+  anteriores", "a y c son correctas"), verificado además en `validateInvariants`.
+
 ## [0.7.0] - 2026-06-27
 
 ### Añadido
@@ -111,7 +135,8 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
   `supabase/migrations/0001_init.sql`.
 - Pantalla de configuración cuando faltan credenciales (no rompe sin claves).
 
-[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.7.0...HEAD
+[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.8.0
 [0.7.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.7.0
 [0.6.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.6.0
 [0.5.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.5.0

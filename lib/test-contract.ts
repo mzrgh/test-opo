@@ -51,6 +51,23 @@ export const GeneratedTestSchema = z.object({
 export type GeneratedTest = z.infer<typeof GeneratedTestSchema>;
 
 /**
+ * Detecta opciones auto-referenciales por posición ("a y c son correctas",
+ * "todas las anteriores", "ninguna de las anteriores"…). Estas rompen el
+ * barajado de opciones que hace el servidor (equilibrarRespuestas), por eso se
+ * prohíben en el prompt y se fuerza reintento si el modelo las cuela.
+ */
+const PATRONES_AUTOREFERENCIA = [
+  /\b(todas|ninguna)\s+(las\s+)?(de\s+las\s+)?(anteriores|dem[aá]s|opciones|respuestas)/i,
+  /\brespuestas?\s+[a-d]\)?\s*(y|,|o|\/)\s*[a-d]\)?/i,
+  /\b[a-d]\)?\s*(y|,)\s*[a-d]\)?\s+son\s+correctas/i,
+  /\bson\s+correctas\b/i,
+];
+
+function esAutoReferencia(opcion: string): boolean {
+  return PATRONES_AUTOREFERENCIA.some((re) => re.test(opcion));
+}
+
+/**
  * Invariantes que el esquema Zod/JSON no captura del todo (chequeos cruzados).
  * Devuelve la lista de errores legibles; vacía = test válido.
  */
@@ -74,6 +91,11 @@ export function validateInvariants(test: GeneratedTest): string[] {
     }
     if (q.indiceCorrecta < 0 || q.indiceCorrecta >= q.opciones.length) {
       errores.push(`Pregunta ${n}: indiceCorrecta fuera de rango.`);
+    }
+    if (q.opciones.some(esAutoReferencia)) {
+      errores.push(
+        `Pregunta ${n}: contiene opciones auto-referenciales por posición ("a y c son correctas", "todas las anteriores"…). Redáctala con 4 opciones independientes y autocontenidas.`,
+      );
     }
     const clave = q.enunciado.trim().toLowerCase();
     if (enunciadosVistos.has(clave)) {
