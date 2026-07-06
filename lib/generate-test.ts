@@ -59,6 +59,7 @@ function equilibrarRespuestas(
 
 function construirPrompt(
   dificultad: Dificultad,
+  conTips: boolean,
   feedback: string[],
   temarioTexto: string | null,
 ): string {
@@ -85,7 +86,8 @@ function construirPrompt(
       "opciones": ["opción A", "opción B", "opción C", "opción D"],
       "indiceCorrecta": 0,
       "explicacion": "string",
-      "refTemario": "string"
+      "refTemario": "string"${conTips ? `,
+      "tip": "string"` : ""}
     }
   ]
 }`
@@ -108,7 +110,12 @@ Reglas obligatorias:
 - Para cada pregunta incluye "explicacion": por qué la opción correcta lo es.
 - No repitas enunciados.
 - Redacta en el mismo idioma del temario.
-- "descripcion": 1-2 frases que resuman de qué trata el temario.
+- "descripcion": 1-2 frases que resuman de qué trata el temario.${
+    conTips
+      ? `
+- Para cada pregunta incluye "tip": una pista de UNA frase que oriente al opositor hacia la respuesta correcta SIN desvelarla ni nombrarla. Señala dónde mirar o qué recordar (concepto, artículo o criterio del temario), nunca la opción. PROHIBIDO mencionar el texto de las opciones o su letra. Mal: "La correcta es la que menciona 30 días". Bien: "Repasa el plazo general de subsanación que fija el procedimiento administrativo común".`
+      : ""
+  }
 
 Estilo (examen oficial de oposición española):
 - Enunciados formales, precisos y de una sola idea; sin ambigüedades ni "trucos" gramaticales.
@@ -127,6 +134,7 @@ Estilo (examen oficial de oposición española):
 export async function generateTest(
   pdfBase64: string,
   dificultad: Dificultad,
+  conTips = false,
 ): Promise<GeneratedTest> {
   let feedback: string[] = [];
 
@@ -140,9 +148,10 @@ export async function generateTest(
     let parsed: GeneratedTest | null = null;
     try {
       const obj = await generationProvider.generarObjeto({
-        prompt: construirPrompt(dificultad, feedback, temarioTexto),
+        prompt: construirPrompt(dificultad, conTips, feedback, temarioTexto),
         pdfBase64,
         temarioTexto,
+        conTips,
       });
       const res = GeneratedTestSchema.safeParse(obj);
       if (!res.success) {
@@ -176,7 +185,7 @@ export async function generateTest(
       continue;
     }
 
-    const errores = validateInvariants(parsed);
+    const errores = validateInvariants(parsed, conTips);
     if (errores.length === 0) {
       // Reparte la respuesta correcta entre A/B/C/D (anti-sesgo del modelo).
       return {

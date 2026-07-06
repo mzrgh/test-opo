@@ -64,6 +64,22 @@ export async function saveAnswer(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Registra que el usuario reveló la pista de una pregunta. Irreversible por
+ * diseño (una vez vista, queda visible y contabilizada): solo pone a true.
+ */
+export async function revealTip(
+  attemptId: string,
+  questionId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("answers")
+    .update({ tip_revelado: true })
+    .eq("attempt_id", attemptId)
+    .eq("question_id", questionId);
+  if (error) throw new Error(error.message);
+}
+
 /** Marca/desmarca una pregunta para revisión. */
 export async function toggleMark(
   attemptId: string,
@@ -90,13 +106,16 @@ export async function finishAttempt(attemptId: string): Promise<void> {
   if (!(attempt as { finished_at: string | null }).finished_at) {
     const { data: answers, error: ansErr } = await supabase
       .from("answers")
-      .select("es_correcta")
+      .select("es_correcta, tip_revelado")
       .eq("attempt_id", attemptId);
     if (ansErr) throw new Error(ansErr.message);
 
-    const aciertos = (answers ?? []).filter(
-      (a) => (a as { es_correcta: boolean | null }).es_correcta === true,
-    ).length;
+    const filas = (answers ?? []) as Array<{
+      es_correcta: boolean | null;
+      tip_revelado: boolean;
+    }>;
+    const aciertos = filas.filter((a) => a.es_correcta === true).length;
+    const tipsRevelados = filas.filter((a) => a.tip_revelado).length;
 
     const startedAt = new Date(
       (attempt as { started_at: string }).started_at,
@@ -109,6 +128,7 @@ export async function finishAttempt(attemptId: string): Promise<void> {
         finished_at: new Date().toISOString(),
         score: aciertos,
         duracion,
+        tips_revelados: tipsRevelados,
       })
       .eq("id", attemptId);
     if (upErr) throw new Error(upErr.message);

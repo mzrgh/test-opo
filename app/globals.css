@@ -436,6 +436,11 @@ button:disabled {
   color: var(--bad);
   border-color: var(--bad);
 }
+.badge.tips {
+  color: #d29922;
+  border-color: #d29922;
+  text-transform: none;
+}
 
 .question {
   background: var(--panel);
@@ -494,6 +499,72 @@ button:disabled {
 }
 .tag.bad {
   color: var(--bad);
+}
+
+/* ── Timer de lectura obligatoria (ejecución) ────────────────────────────── */
+/* No tapa enunciado ni opciones: es una franja fina entre ambos. */
+.read-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+.read-timer-bar {
+  flex: 1;
+}
+.read-timer-label {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.run-option:disabled,
+.mark-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Tips (pistas) ───────────────────────────────────────────────────────── */
+.tip-block {
+  margin: 12px 0;
+}
+.tip-btn {
+  font-size: 13px;
+}
+.tip-box {
+  border: 1px solid #d29922;
+  background: rgba(210, 153, 34, 0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.nav-tips-count {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.tips-used {
+  color: #d29922;
+}
+/* Pregunta cuyo tip fue revelado: enunciado en rojo (revisión/resultados). */
+.q-head.tip-revelado {
+  color: var(--bad);
+}
+.tag.tip-tag {
+  color: var(--bad);
+  margin-left: 8px;
+}
+
+/* Checkbox en línea (toggle de Tips en los formularios de generación). */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.check-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 /* ── CTAs en la landing del test ─────────────────────────────────────────── */

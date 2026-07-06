@@ -69,6 +69,7 @@ export default async function Dashboard() {
     { label: "Tests generados", value: stats.nTests },
     { label: "Tests realizados", value: stats.nTestsRealizados },
     { label: "Intentos totales", value: stats.nIntentos },
+    { label: "Pistas usadas", value: stats.tipsUsados },
     {
       label: "Nota media",
       value:

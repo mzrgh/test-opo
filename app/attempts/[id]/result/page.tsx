@@ -26,8 +26,17 @@ export default async function ResultPage({
   // Si el intento no está finalizado, mándalo a ejecutarlo (reanudar).
   if (!data.attempt.finished_at) redirect(`/attempts/${id}/run`);
 
-  const { test, subject, questions, answersByQuestion, aciertos, fallos, sinResponder, total } =
-    data;
+  const {
+    test,
+    subject,
+    questions,
+    answersByQuestion,
+    aciertos,
+    fallos,
+    sinResponder,
+    tipsRevelados,
+    total,
+  } = data;
   const pct = total > 0 ? Math.round((aciertos / total) * 100) : 0;
 
   return (
@@ -42,6 +51,7 @@ export default async function ResultPage({
         <span className={`badge ${test.dificultad}`}>
           {DIFFICULTY_DEFS[test.dificultad].label}
         </span>
+        {test.con_tips && <span className="badge tips"> 💡 Con pistas</span>}
       </p>
 
       <div className="panel score-panel">
@@ -54,6 +64,9 @@ export default async function ResultPage({
           <span className="bad">✘ {fallos} fallos</span>
           <span className="muted">○ {sinResponder} sin responder</span>
           <span className="muted">⏱ {duracionLegible(data.attempt.duracion)}</span>
+          {test.con_tips && (
+            <span className="tips-used">💡 {tipsRevelados} pistas usadas</span>
+          )}
         </div>
       </div>
 
@@ -61,10 +74,16 @@ export default async function ResultPage({
       {questions.map((q) => {
         const a = answersByQuestion[q.id];
         const elegida = a?.opcion_elegida ?? null;
+        const tipUsado = a?.tip_revelado ?? false;
         return (
           <div className="question" key={q.id}>
-            <div className="q-head">
+            <div className={`q-head ${tipUsado ? "tip-revelado" : ""}`}>
               {q.orden + 1}. {q.enunciado}
+              {tipUsado && (
+                <span className="tag tip-tag" title="Pista revelada durante el test">
+                  💡 pista usada
+                </span>
+              )}
             </div>
             <ul className="options">
               {q.opciones.map((op, i) => {
@@ -92,6 +111,12 @@ export default async function ResultPage({
               <p className="hint">No respondiste esta pregunta.</p>
             )}
             <div className="explain">
+              {tipUsado && q.tip && (
+                <>
+                  <strong>💡 Pista revelada:</strong> {q.tip}
+                  <br />
+                </>
+              )}
               <strong>Explicación:</strong> {q.explicacion}
               {q.ref_temario && (
                 <>

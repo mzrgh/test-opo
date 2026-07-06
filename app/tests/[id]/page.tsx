@@ -59,7 +59,8 @@ export default async function TestPage({
       <p>
         <span className={`badge ${test.dificultad}`}>
           {DIFFICULTY_DEFS[test.dificultad].label}
-        </span>{" "}
+        </span>
+        {test.con_tips && <span className="badge tips"> 💡 Con pistas</span>}{" "}
         <span className="muted">
           · {questions.length} preguntas · generado el {fecha(test.created_at)}
         </span>
@@ -101,6 +102,9 @@ export default async function TestPage({
                   {fecha(a.finished_at ?? a.started_at)}
                 </Link>{" "}
                 <span className="muted">· {duracionLegible(a.duracion)}</span>
+                {test.con_tips && (
+                  <span className="muted"> · 💡 {a.tips_revelados ?? 0}</span>
+                )}
               </span>
               <span>
                 <strong>{a.score}</strong>/{questions.length}

@@ -11,6 +11,29 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 - Comparativa visual de intentos del mismo test (HU-17).
 - Modo repaso de preguntas falladas.
 
+## [1.0.0] - 2026-07-06
+
+### Añadido
+- **Timer de lectura obligatoria** en la ejecución de tests: al mostrar cada
+  pregunta, las opciones A/B/C/D y "Marcar para revisión" quedan bloqueadas
+  unos segundos (barra de progreso + cuenta atrás visibles, sin tapar enunciado
+  ni respuestas) para forzar la lectura. La navegación entre preguntas no se
+  bloquea y el timer se reinicia cada vez que se muestra una pregunta (también
+  al reanudar o recargar). Configurable con la env `QUESTION_UNLOCK_SECONDS`
+  (default 20; `0` = desactivado), fuente única en `lib/run-config.ts`.
+- **Tips (pistas) por pregunta**: al generar un test se puede marcar "Generar
+  con pistas" (en `/generar` y al regenerar desde un temario). `con_tips` es un
+  atributo del test (como la dificultad, badge "💡 Con pistas") y cada pregunta
+  lleva una pista generada por el LLM que orienta sin desvelar la respuesta
+  (invariante validada con reintento). Durante el test, la pista se puede
+  revelar una vez pasado el timer; revelarla es irreversible (queda visible) y
+  se registra en servidor (`answers.tip_revelado`, action `revealTip`). No
+  penaliza la nota. El nº de pistas usadas se ve en la ejecución, en resultados
+  (contador + enunciado en rojo + texto de la pista en la revisión), en el
+  historial de intentos, en el solucionario y como KPI del dashboard
+  (`attempts.tips_revelados`, denormalizado al finalizar). Migración
+  `0003_tips.sql`.
+
 ## [0.8.0] - 2026-07-04
 
 ### Añadido
@@ -135,7 +158,8 @@ y el proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
   `supabase/migrations/0001_init.sql`.
 - Pantalla de configuración cuando faltan credenciales (no rompe sin claves).
 
-[No publicado]: https://github.com/USUARIO/tests-opo/compare/v0.8.0...HEAD
+[No publicado]: https://github.com/USUARIO/tests-opo/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/USUARIO/tests-opo/releases/tag/v1.0.0
 [0.8.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.8.0
 [0.7.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.7.0
 [0.6.0]: https://github.com/USUARIO/tests-opo/releases/tag/v0.6.0

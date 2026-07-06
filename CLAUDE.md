@@ -107,8 +107,25 @@ habilita reanudar: `attempts.finished_at = null` ⇒ test en curso; la landing d
 ofrece "Continuar" y `getInProgressAttempt` lo localiza.
 
 **Scoring.** `finishAttempt` cuenta `es_correcta = true`, guarda `score` (nº de aciertos),
-`duracion` (seg desde `started_at`) y `finished_at`. Es idempotente (no re-puntúa si ya
-está finalizado). Sin penalización por fallo todavía (mejora futura).
+`duracion` (seg desde `started_at`), `tips_revelados` (nº de pistas usadas) y
+`finished_at`. Es idempotente (no re-puntúa si ya está finalizado). Sin penalización por
+fallo ni por pista (las pistas solo se contabilizan).
+
+**Timer de lectura obligatoria.** Al mostrar cada pregunta, `RunClient` bloquea opciones
+y "Marcar para revisión" durante `QUESTION_UNLOCK_SECONDS` segundos (env; default 20,
+`0` = off; fuente única `lib/run-config.ts`, **server-only**: llega al cliente como prop
+desde `run/page.tsx`). Se reinicia SIEMPRE que se muestra la pregunta (navegar, reanudar,
+recargar), aunque ya esté contestada — decisión explícita. La navegación no se bloquea.
+
+**Tips (pistas).** `tests.con_tips` es atributo del test (como la dificultad); se elige
+con checkbox en ambos flujos de generación (`name="tips"`). Con tips, el prompt exige
+`tip` por pregunta (pista que orienta SIN desvelar la respuesta ni citar opciones/letras
+— las opciones se barajan después) y `validateInvariants(test, conTips)` fuerza reintento
+si falta. El `tip` SÍ viaja al cliente en `getRunData` (no es la solución; sigue sin
+viajar `indice_correcta`/`explicacion`). Revelar es irreversible: `revealTip`
+(attempt-actions) pone `answers.tip_revelado = true`, nunca lo revierte; el botón solo se
+habilita pasado el timer. Preguntas con tip revelado → enunciado en rojo
+(`.q-head.tip-revelado`) en resultados. Migración `0003_tips.sql`.
 
 ## Navegación / IA (barra fija con 3 secciones)
 

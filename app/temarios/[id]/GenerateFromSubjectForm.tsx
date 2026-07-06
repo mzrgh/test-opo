@@ -45,6 +45,16 @@ export default function GenerateFromSubjectForm({
         </div>
       </div>
 
+      <div className="field">
+        <label className="check-row">
+          <input type="checkbox" name="tips" value="si" disabled={isPending} />
+          Generar con pistas (Tips)
+        </label>
+        <p className="hint">
+          Cada pregunta llevará una pista revelable durante el test.
+        </p>
+      </div>
+
       <button type="submit" disabled={isPending}>
         {isPending
           ? "Generando… (puede tardar 1-3 min)"

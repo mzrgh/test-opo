@@ -96,6 +96,17 @@ export default function GenerateForm() {
       </div>
 
       <div className="field">
+        <label className="check-row">
+          <input type="checkbox" name="tips" value="si" disabled={isPending} />
+          Generar con pistas (Tips)
+        </label>
+        <p className="hint">
+          Cada pregunta llevará una pista que podrás revelar durante el test.
+          Revelarla no penaliza la nota, pero queda registrada.
+        </p>
+      </div>
+
+      <div className="field">
         <label>Dificultad</label>
         <div className="diff-grid">
           {DIFFICULTY_LIST.map((d, idx) => (

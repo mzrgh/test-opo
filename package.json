@@ -1,6 +1,6 @@
 {
   "name": "tests-opo",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Generador de tests de oposiciones a partir de temarios en PDF (Next.js + Supabase + LLM conmutable: Anthropic / DeepSeek / z.ai)",
   "scripts": {

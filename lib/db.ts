@@ -19,6 +19,7 @@ export interface TestRow {
   dificultad: Dificultad;
   descripcion: string;
   status: string;
+  con_tips: boolean;
   created_at: string;
 }
 
@@ -30,6 +31,7 @@ export interface QuestionRow {
   indice_correcta: number;
   explicacion: string;
   ref_temario: string | null;
+  tip: string | null;
   orden: number;
 }
 
@@ -50,6 +52,7 @@ export async function insertTestWithQuestions(
   subjectId: string,
   dificultad: Dificultad,
   generated: GeneratedTest,
+  conTips = false,
 ): Promise<string> {
   const { data: test, error: testErr } = await supabase
     .from("tests")
@@ -58,6 +61,7 @@ export async function insertTestWithQuestions(
       dificultad,
       descripcion: generated.descripcion,
       status: "listo",
+      con_tips: conTips,
     })
     .select("id")
     .single();
@@ -72,6 +76,7 @@ export async function insertTestWithQuestions(
     indice_correcta: q.indiceCorrecta,
     explicacion: q.explicacion,
     ref_temario: q.refTemario,
+    tip: conTips ? (q.tip ?? null) : null,
     orden: i,
   }));
   const { error: qErr } = await supabase.from("questions").insert(filas);
@@ -275,6 +280,7 @@ export interface AttemptRow {
   finished_at: string | null;
   score: number | null; // nº de aciertos
   duracion: number | null; // segundos
+  tips_revelados: number | null; // denormalizado al finalizar (null = en curso)
 }
 
 export interface AnswerRow {
@@ -284,14 +290,19 @@ export interface AnswerRow {
   opcion_elegida: number | null;
   es_correcta: boolean | null;
   marcada_para_revision: boolean;
+  tip_revelado: boolean;
 }
 
-/** Pregunta SIN solución: lo único que puede ver el cliente durante el examen. */
+/**
+ * Pregunta SIN solución: lo único que puede ver el cliente durante el examen.
+ * El tip NO es la solución (es una pista revelable), por eso sí viaja.
+ */
 export interface RunQuestion {
   id: string;
   orden: number;
   enunciado: string;
   opciones: string[];
+  tip: string | null;
 }
 
 // ── Lecturas de ejecución ─────────────────────────────────────────────────────
@@ -331,6 +342,7 @@ export interface RunData {
   subject: SubjectRow;
   questions: RunQuestion[];
   answers: AnswerRow[];
+  conTips: boolean;
 }
 
 /** Datos para la pantalla de ejecución (preguntas SIN solución). */
@@ -346,22 +358,24 @@ export async function getRunData(attemptId: string): Promise<RunData | null> {
 
   const { data: test, error: tErr } = await supabase
     .from("tests")
-    .select("subject_id")
+    .select("subject_id, con_tips")
     .eq("id", at.test_id)
     .maybeSingle();
   if (tErr) throw new Error(tErr.message);
+  const testRow = test as { subject_id: string; con_tips: boolean };
 
   const { data: subject, error: sErr } = await supabase
     .from("subjects")
     .select("*")
-    .eq("id", (test as { subject_id: string }).subject_id)
+    .eq("id", testRow.subject_id)
     .maybeSingle();
   if (sErr) throw new Error(sErr.message);
 
   // OJO: no seleccionamos indice_correcta ni explicacion (modo examen).
+  // El tip sí viaja: es una pista revelable, no la solución.
   const { data: questions, error: qErr } = await supabase
     .from("questions")
-    .select("id, orden, enunciado, opciones")
+    .select("id, orden, enunciado, opciones, tip")
     .eq("test_id", at.test_id)
     .order("orden", { ascending: true });
   if (qErr) throw new Error(qErr.message);
@@ -377,6 +391,7 @@ export async function getRunData(attemptId: string): Promise<RunData | null> {
     subject: subject as SubjectRow,
     questions: (questions ?? []) as RunQuestion[],
     answers: (answers ?? []) as AnswerRow[],
+    conTips: testRow.con_tips,
   };
 }
 
@@ -389,6 +404,7 @@ export interface ResultData {
   aciertos: number;
   fallos: number;
   sinResponder: number;
+  tipsRevelados: number;
   total: number;
 }
 
@@ -422,11 +438,13 @@ export async function getResultData(
   let aciertos = 0;
   let fallos = 0;
   let sinResponder = 0;
+  let tipsRevelados = 0;
   for (const q of detail.questions) {
     const a = answersByQuestion[q.id];
     if (!a || a.opcion_elegida === null) sinResponder++;
     else if (a.es_correcta) aciertos++;
     else fallos++;
+    if (a?.tip_revelado) tipsRevelados++;
   }
 
   return {
@@ -438,6 +456,7 @@ export async function getResultData(
     aciertos,
     fallos,
     sinResponder,
+    tipsRevelados,
     total: detail.questions.length,
   };
 }
@@ -449,6 +468,7 @@ export interface DashboardStats {
   nTests: number;
   nTestsRealizados: number; // tests distintos con ≥1 intento finalizado
   nIntentos: number; // intentos finalizados
+  tipsUsados: number; // suma de tips revelados en intentos finalizados
   notaMedia10: number | null; // media de (aciertos/preguntas)·10, base 10
   evolucion: number[]; // % de cada intento finalizado, orden cronológico (gráfico)
   recientes: Array<{
@@ -497,7 +517,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   const { data: attempts, error: aErr } = await supabase
     .from("attempts")
-    .select("id, test_id, score, finished_at")
+    .select("id, test_id, score, finished_at, tips_revelados")
     .not("finished_at", "is", null)
     .order("finished_at", { ascending: true });
   if (aErr) throw new Error(aErr.message);
@@ -506,6 +526,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     test_id: string;
     score: number | null;
     finished_at: string;
+    tips_revelados: number | null;
   }>;
 
   const pctDe = (testId: string, score: number | null): number => {
@@ -520,6 +541,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const evolucion = fin.map((a) => pctDe(a.test_id, a.score)); // gráfico en %
   const nIntentos = fin.length;
   const nTestsRealizados = new Set(fin.map((a) => a.test_id)).size;
+  const tipsUsados = fin.reduce((s, a) => s + (a.tips_revelados ?? 0), 0);
   const notaMedia10 =
     nIntentos > 0
       ? fin.reduce((s, a) => s + nota10De(a.test_id, a.score), 0) / nIntentos
@@ -542,6 +564,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     nTests: nTests ?? 0,
     nTestsRealizados,
     nIntentos,
+    tipsUsados,
     notaMedia10,
     evolucion,
     recientes,

@@ -48,6 +48,7 @@ export async function generateAction(
 
   const nombre = String(formData.get("nombre") ?? "").trim();
   const dificultad = String(formData.get("dificultad") ?? "") as Dificultad;
+  const conTips = formData.get("tips") === "si";
   const nivel = String(formData.get("nivel") ?? "").trim();
   const etiquetasLibres = parseEtiquetas(formData.get("etiquetas"));
   const file = formData.get("pdf");
@@ -103,7 +104,7 @@ export async function generateAction(
   // 2) Generar el test (paso caro y arriesgado) ANTES de tocar la BD.
   let generated;
   try {
-    generated = await generateTest(pdfBase64, dificultad);
+    generated = await generateTest(pdfBase64, dificultad, conTips);
   } catch (e) {
     // Limpieza: borra el PDF huérfano si la generación falla.
     await supabase.storage.from(TEMARIOS_BUCKET).remove([pdfPath]);
@@ -137,7 +138,12 @@ export async function generateAction(
 
   let testId: string;
   try {
-    testId = await insertTestWithQuestions(subject.id, dificultad, generated);
+    testId = await insertTestWithQuestions(
+      subject.id,
+      dificultad,
+      generated,
+      conTips,
+    );
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error guardando el test." };
   }
@@ -163,6 +169,7 @@ export async function generateFromSubjectAction(
 
   const subjectId = String(formData.get("subjectId") ?? "").trim();
   const dificultad = String(formData.get("dificultad") ?? "") as Dificultad;
+  const conTips = formData.get("tips") === "si";
 
   if (!subjectId) return { error: "Temario no válido." };
   if (!DIFFICULTIES.includes(dificultad)) {
@@ -202,14 +209,19 @@ export async function generateFromSubjectAction(
 
   let generated;
   try {
-    generated = await generateTest(pdfBase64, dificultad);
+    generated = await generateTest(pdfBase64, dificultad, conTips);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error generando el test." };
   }
 
   let testId: string;
   try {
-    testId = await insertTestWithQuestions(subjectId, dificultad, generated);
+    testId = await insertTestWithQuestions(
+      subjectId,
+      dificultad,
+      generated,
+      conTips,
+    );
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error guardando el test." };
   }

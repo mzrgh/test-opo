@@ -31,7 +31,8 @@ export default async function SolucionarioPage({
       <p>
         <span className={`badge ${test.dificultad}`}>
           {DIFFICULTY_DEFS[test.dificultad].label}
-        </span>{" "}
+        </span>
+        {test.con_tips && <span className="badge tips"> 💡 Con pistas</span>}{" "}
         <span className="muted">{questions.length} preguntas</span>
       </p>
 
@@ -49,6 +50,12 @@ export default async function SolucionarioPage({
             ))}
           </ul>
           <div className="explain">
+            {q.tip && (
+              <>
+                <strong>💡 Pista:</strong> {q.tip}
+                <br />
+              </>
+            )}
             <strong>Explicación:</strong> {q.explicacion}
             {q.ref_temario && (
               <>

@@ -32,8 +32,29 @@ export const GeneratedQuestionSchema = z.object({
     .string()
     .min(1)
     .describe("Fragmento del temario que justifica la respuesta (anti-alucinación)."),
+  tip: z
+    .string()
+    .nullish()
+    .describe(
+      "Pista breve (1 frase) que orienta hacia la respuesta SIN desvelarla. Solo si se piden tips; en caso contrario, omítela.",
+    ),
 });
 export type GeneratedQuestion = z.infer<typeof GeneratedQuestionSchema>;
+
+/**
+ * Variante CON tips: el tip es OBLIGATORIO en el esquema. Se usa como formato
+ * de salida estructurada cuando el usuario pide el test con pistas, para que
+ * el modelo no pueda omitirlo (evita reintentos). El esquema base (tip
+ * opcional) sigue siendo el de validación común: acepta ambos casos.
+ */
+export const GeneratedQuestionConTipSchema = GeneratedQuestionSchema.extend({
+  tip: z
+    .string()
+    .min(1)
+    .describe(
+      "Pista breve (1 frase) que orienta hacia la respuesta SIN desvelarla ni mencionar las opciones o sus letras.",
+    ),
+});
 
 export const GeneratedTestSchema = z.object({
   descripcion: z
@@ -49,6 +70,13 @@ export const GeneratedTestSchema = z.object({
     .describe(`Idealmente ${TOTAL_PREGUNTAS} preguntas.`),
 });
 export type GeneratedTest = z.infer<typeof GeneratedTestSchema>;
+
+export const GeneratedTestSchemaConTips = GeneratedTestSchema.extend({
+  preguntas: z
+    .array(GeneratedQuestionConTipSchema)
+    .min(1)
+    .describe(`Idealmente ${TOTAL_PREGUNTAS} preguntas.`),
+});
 
 /**
  * Detecta opciones auto-referenciales por posición ("a y c son correctas",
@@ -70,8 +98,12 @@ function esAutoReferencia(opcion: string): boolean {
 /**
  * Invariantes que el esquema Zod/JSON no captura del todo (chequeos cruzados).
  * Devuelve la lista de errores legibles; vacía = test válido.
+ * `conTips`: si el test se pidió con pistas, cada pregunta debe traer un tip.
  */
-export function validateInvariants(test: GeneratedTest): string[] {
+export function validateInvariants(
+  test: GeneratedTest,
+  conTips = false,
+): string[] {
   const errores: string[] = [];
 
   if (test.preguntas.length < MIN_PREGUNTAS) {
@@ -95,6 +127,11 @@ export function validateInvariants(test: GeneratedTest): string[] {
     if (q.opciones.some(esAutoReferencia)) {
       errores.push(
         `Pregunta ${n}: contiene opciones auto-referenciales por posición ("a y c son correctas", "todas las anteriores"…). Redáctala con 4 opciones independientes y autocontenidas.`,
+      );
+    }
+    if (conTips && !q.tip?.trim()) {
+      errores.push(
+        `Pregunta ${n}: falta el campo "tip" (pista breve que oriente sin desvelar la respuesta). Se pidió el test CON pistas: todas las preguntas deben incluirlo.`,
       );
     }
     const clave = q.enunciado.trim().toLowerCase();

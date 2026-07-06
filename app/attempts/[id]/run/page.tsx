@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getRunData } from "@/lib/db";
+import { getSegundosBloqueoPregunta } from "@/lib/run-config";
 import RunClient from "./RunClient";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,8 @@ export default async function RunPage({
       subjectNombre={data.subject?.nombre ?? "Test"}
       questions={data.questions}
       initialAnswers={data.answers}
+      conTips={data.conTips}
+      segundosBloqueo={getSegundosBloqueoPregunta()}
     />
   );
 }

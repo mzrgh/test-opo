@@ -5,7 +5,10 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { anthropic, GENERATION_MODEL, isAnthropicConfigured } from "./anthropic";
 import { deepseek, DEEPSEEK_MODEL, isDeepseekConfigured } from "./deepseek";
 import { zai, ZAI_MODEL, isZaiConfigured } from "./zai";
-import { GeneratedTestSchema } from "./test-contract";
+import {
+  GeneratedTestSchema,
+  GeneratedTestSchemaConTips,
+} from "./test-contract";
 
 export type ProviderId = "anthropic" | "deepseek" | "zai";
 
@@ -19,6 +22,8 @@ interface GenerarParams {
   pdfBase64: string;
   /** Texto del temario ya extraído (para proveedores que no leen PDFs). */
   temarioTexto: string | null;
+  /** Con pistas: la salida estructurada exige "tip" por pregunta. */
+  conTips: boolean;
 }
 
 interface GenerationProvider {
@@ -36,7 +41,7 @@ const anthropicProvider: GenerationProvider = {
   label: `Anthropic (${GENERATION_MODEL})`,
   requiereTextoPlano: false,
   isConfigured: isAnthropicConfigured,
-  async generarObjeto({ prompt, pdfBase64 }) {
+  async generarObjeto({ prompt, pdfBase64, conTips }) {
     // Haiku 4.5 no admite adaptive thinking ni output_config.effort.
     const soportaThinking = !GENERATION_MODEL.includes("haiku");
     const response = await anthropic.messages.parse({
@@ -45,7 +50,10 @@ const anthropicProvider: GenerationProvider = {
       ...(soportaThinking ? { thinking: { type: "adaptive" as const } } : {}),
       output_config: {
         ...(soportaThinking ? { effort: "high" as const } : {}),
-        format: zodOutputFormat(GeneratedTestSchema),
+        // Con tips, el esquema exige "tip" por pregunta (el modelo no puede omitirlo).
+        format: zodOutputFormat(
+          conTips ? GeneratedTestSchemaConTips : GeneratedTestSchema,
+        ),
       },
       messages: [
         {
